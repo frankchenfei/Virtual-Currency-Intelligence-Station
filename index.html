@@ -10,7 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CryptoIntel 虚拟货币情报站</title>
-<link rel="stylesheet" href="styles.css?v=20260815">
+<link rel="stylesheet" href="styles.css?v=20260815-2">
 </head>
 <body>
 <header class="topbar">
@@ -71,7 +71,7 @@
           <div id="chartTip" class="chart-tip hidden"></div>
         </div>
         <div class="chart-foot">
-          <div id="ohlcLegend">K 线数据加载中...</div>
+          <div id="ohlcLegend" data-i18n="chart.loading">K 线数据加载中...</div>
           <div id="chartSource" class="source-note"></div>
         </div>
       </article>
@@ -87,7 +87,7 @@
         <div class="side-block">
           <header class="card-head compact">
             <h2 data-i18n="signals.title">信号引擎</h2>
-            <button id="rescanBtn" class="mini-btn" title="重新扫描全部币种">重扫</button>
+            <button id="rescanBtn" class="mini-btn" data-i18n="signals.rescan" data-i18n-title="signals.rescan" title="重新扫描全部币种">重扫</button>
           </header>
           <div id="signalPanel" class="signal-panel"></div>
         </div>
@@ -152,14 +152,14 @@
     <div class="grid chain-top">
       <article class="card net-card">
         <header class="card-head compact">
-          <h2>BTC 网络健康</h2>
+          <h2 data-i18n="chain.net">BTC 网络健康</h2>
           <span class="muted" id="netTime"></span>
         </header>
         <div id="netStats" class="stat-grid"></div>
       </article>
       <article class="card fee-card">
         <header class="card-head compact">
-          <h2>手续费与内存池</h2>
+          <h2 data-i18n="chain.fees">手续费与内存池</h2>
           <span class="muted" id="mempoolTime"></span>
         </header>
         <div id="feePanel" class="fee-panel"></div>
@@ -169,14 +169,14 @@
     <div class="grid chain-mid">
       <article class="card defi-card">
         <header class="card-head compact">
-          <h2>DeFi 链上 TVL</h2>
+          <h2 data-i18n="chain.defi">DeFi 链上 TVL</h2>
           <span class="muted">DefiLlama</span>
         </header>
         <div id="defiPanel" class="defi-panel"></div>
       </article>
       <article class="card whale-card">
         <header class="card-head compact">
-          <h2>巨鲸雷达</h2>
+          <h2 data-i18n="chain.whale">巨鲸雷达</h2>
           <span class="muted" id="whaleSource"></span>
         </header>
         <div id="whalePanel" class="whale-panel"></div>
@@ -185,7 +185,7 @@
 
     <article class="card flow-card">
       <header class="card-head compact">
-        <h2>交易所资金流向</h2>
+        <h2 data-i18n="chain.flows">交易所资金流向</h2>
         <span class="muted" id="flowNote"></span>
       </header>
       <div id="flowPanel" class="flow-panel"></div>
@@ -197,11 +197,11 @@
       <article class="card chat-card">
         <header class="card-head compact">
           <h2 data-i18n="ai.title">智能问答</h2>
-          <span class="muted">自然语言查询市场数据</span>
+          <span class="muted" data-i18n="ai.subtitle">自然语言查询市场数据</span>
         </header>
         <div id="chatLog" class="chat-log"></div>
         <form id="chatForm" class="chat-form" autocomplete="off">
-          <input id="chatInput" placeholder="输入问题，如：ETH 的 RSI 是多少？" autocomplete="off">
+          <input id="chatInput" data-i18n-placeholder="ai.chatPlaceholder" placeholder="输入问题，如：ETH 的 RSI 是多少？" autocomplete="off">
           <button type="submit" data-i18n="ask.submit">发送</button>
         </form>
       </article>
@@ -215,7 +215,7 @@
       <article class="card insight-card">
         <header class="card-head compact">
           <h2 data-i18n="ai.insight">AI 市场解读</h2>
-          <button id="refreshInsight" class="mini-btn">重新解读</button>
+          <button id="refreshInsight" class="mini-btn" data-i18n="ai.reinterpret">重新解读</button>
         </header>
         <div id="insightBody" class="insight-body"></div>
       </article>
@@ -239,7 +239,7 @@
   <div class="modal-card">
     <header class="modal-head">
       <h2 id="settingsTitle" data-i18n="settings.title">数据源与 API 配置</h2>
-      <button id="closeSettings" class="icon-btn" aria-label="关闭">
+      <button id="closeSettings" class="icon-btn" data-i18n-aria="common.close" aria-label="关闭">
         <svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button>
     </header>
@@ -267,15 +267,15 @@
 
 <div id="toast" class="toast hidden" role="status"></div>
 
-<script src="lang-zh.js?v=20260815"></script>
-<script src="lang-en.js?v=20260815"></script>
-<script src="lang-es.js?v=20260815"></script>
-<script src="i18n.js?v=20260815"></script>
-<script src="config.js?v=20260815"></script>
-<script src="indicators.js?v=20260815"></script>
-<script src="data.js?v=20260815"></script>
-<script src="charts.js?v=20260815"></script>
-<script src="ai.js?v=20260815"></script>
-<script src="app.js?v=20260815"></script>
+<script src="lang-zh.js?v=20260815-2"></script>
+<script src="lang-en.js?v=20260815-2"></script>
+<script src="lang-es.js?v=20260815-2"></script>
+<script src="i18n.js?v=20260815-2"></script>
+<script src="config.js?v=20260815-2"></script>
+<script src="indicators.js?v=20260815-2"></script>
+<script src="data.js?v=20260815-2"></script>
+<script src="charts.js?v=20260815-2"></script>
+<script src="ai.js?v=20260815-2"></script>
+<script src="app.js?v=20260815-2"></script>
 </body>
 </html>

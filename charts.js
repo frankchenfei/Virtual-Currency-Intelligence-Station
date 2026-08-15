@@ -247,9 +247,9 @@ const Charts = (() => {
     }
 
     const l1 = svg('text', { x: padL + 4, y: h - 8, fill: '#2fbf71', 'font-size': 10, 'font-weight': 700 });
-    l1.textContent = '买盘 ' + Data.fmtNum(bidTotal, 0);
+    l1.textContent = I18N.t('depth.bid') + ' ' + Data.fmtNum(bidTotal, 0);
     const l2 = svg('text', { x: w - padR - 4, y: h - 8, 'text-anchor': 'end', fill: '#f0546d', 'font-size': 10, 'font-weight': 700 });
-    l2.textContent = '卖盘 ' + Data.fmtNum(askTotal, 0);
+    l2.textContent = I18N.t('depth.ask') + ' ' + Data.fmtNum(askTotal, 0);
     root.appendChild(l1);
     root.appendChild(l2);
     return root;

@@ -10,6 +10,8 @@ const App = (() => {
 
   const $ = id => document.getElementById(id);
   let resizeRaf = 0;
+  let chatEntries = [];
+  let chatLang = I18N.get();
 
   function esc(s) { return AI.esc(s); }
 
@@ -228,7 +230,7 @@ const App = (() => {
     if (fng) {
       const pct = Math.max(2, Math.min(98, fng.value));
       html += '<div class="gauge-block">' +
-        '<div class="gauge-top"><span class="gauge-value">' + fng.value + '</span><span class="gauge-label">' + esc(I18N.t('overview.gauge')) + ' · ' + esc(fng.label) + '</span></div>' +
+        '<div class="gauge-top"><span class="gauge-value">' + fng.value + '</span><span class="gauge-label">' + esc(I18N.t('overview.gauge')) + ' · ' + esc(AI.fngLabel()) + '</span></div>' +
         '<div class="gauge-bar"><span class="gauge-arrow" style="left:' + pct + '%"></span></div></div>';
     }
     if (g) {
@@ -292,13 +294,13 @@ const App = (() => {
       '<div class="sentiment-score" style="border-color:' + circleColor + '"><div><b>' + (score > 0 ? '+' : '') + score + '</b><span>' + esc(I18N.t('sent.scoreLabel')) + '</span></div></div>' +
       '<div class="sentiment-copy"><div class="big">' + esc(I18N.t('sent.title')) + ' ' + esc(tone) + '</div>' +
       '<div class="small">' + esc(I18N.t('sent.based', { n: news.length })) + '</div>' +
-      (fng ? '<div class="small">' + esc(I18N.t('overview.gauge')) + ': ' + fng.value + '（' + esc(fng.label) + '）</div>' : '') + '</div></div>' +
+      (fng ? '<div class="small">' + esc(I18N.t('overview.gauge')) + ': ' + fng.value + (I18N.get() === 'zh' ? '（' : '(') + esc(AI.fngLabel()) + (I18N.get() === 'zh' ? '）' : ')') + '</div>' : '') + '</div></div>' +
       '<div class="sentiment-bars">' +
       '<div class="sentiment-bar"><span>' + esc(I18N.t('sent.positive')) + '</span><span class="track"><i style="width:' + (pos / total * 100).toFixed(1) + '%;background:#2fbf71"></i></span><span class="num">' + pos + '</span></div>' +
       '<div class="sentiment-bar"><span>' + esc(I18N.t('sent.neutral')) + '</span><span class="track"><i style="width:' + (neu / total * 100).toFixed(1) + '%;background:#8fa0ae"></i></span><span class="num">' + neu + '</span></div>' +
       '<div class="sentiment-bar"><span>' + esc(I18N.t('sent.negative')) + '</span><span class="track"><i style="width:' + (neg / total * 100).toFixed(1) + '%;background:#f0546d"></i></span><span class="num">' + neg + '</span></div></div>' +
       '<div class="sentiment-tags">' +
-      (fng ? '<span class="tag">F&G ' + fng.value + ' · ' + esc(fng.label) + '</span>' : '') +
+      (fng ? '<span class="tag">F&G ' + fng.value + ' · ' + esc(AI.fngLabel()) + '</span>' : '') +
       '<span class="tag">' + esc(I18N.t('sent.local')) + '</span><span class="tag">' + esc(relTime(news.length ? news[0].published_on : 0)) + '</span></div>';
   }
 
@@ -386,7 +388,7 @@ const App = (() => {
     feePanel.innerHTML = feeHtml || '<div class="empty-note">' + esc(I18N.t('chain.loading')) + '</div>';
 
     const defi = oc.defi || [];
-    defiPanel.innerHTML = '<div class="defi-row head"><span>Chain</span><span class="defi-val">TVL (USD)</span><span class="defi-chg">24h</span><span class="defi-val">%</span></div>' +
+    defiPanel.innerHTML = '<div class="defi-row head"><span>' + esc(I18N.t('chain.table.chain')) + '</span><span class="defi-val">' + esc(I18N.t('chain.table.tvl')) + '</span><span class="defi-chg">' + esc(I18N.t('chain.table.change')) + '</span><span class="defi-val">' + esc(I18N.t('chain.table.share')) + '</span></div>' +
       defi.map(d => {
         const total = defi.reduce((a, x) => a + x.tvl, 0) || 1;
         const pct = (d.tvl / total * 100).toFixed(1);
@@ -426,6 +428,45 @@ const App = (() => {
     el.innerHTML = I18N.t('ai.suggestions').split(' | ').map(s => '<button class="suggestion">' + esc(s) + '</button>').join('');
   }
 
+  function welcomeContent() {
+    const fng = Data.store.fng;
+    const g = Data.store.global;
+    const sugg = I18N.t('ai.suggestions').split(' | ');
+    return {
+      title: I18N.t('ai.welcomeTitle'),
+      html: '<p>' + I18N.t('ai.welcome', {
+        price: esc(sugg[0] || ''), rsi: esc(sugg[1] || ''), news: esc(sugg[2] || ''),
+        sentiment: esc(sugg[3] || ''), chain: esc(sugg[4] || '')
+      }) + '</p>' +
+        '<p>' + (fng ? I18N.t('overview.gauge') + ' <strong>' + fng.value + '</strong>' + (I18N.get() === 'zh' ? '（' : '(') + esc(AI.fngLabel()) + (I18N.get() === 'zh' ? '）' : ')') : esc(I18N.t('ai.chainLoading'))) + (I18N.get() === 'zh' ? '，' : ', ') +
+        (g ? I18N.t('overview.totalMc') + ' <strong>' + Data.fmtNum(g.totalMc, 1) + ' USD</strong>' : '') + (I18N.get() === 'zh' ? '。' : '.') + '</p>'
+    };
+  }
+
+  function renderChat() {
+    const chat = $('chatLog');
+    if (!chat) return;
+    chat.innerHTML = '';
+    chatEntries.forEach(e => {
+      const div = document.createElement('div');
+      div.className = 'chat-msg ' + e.role;
+      if (e.content.title) div.innerHTML = '<span class="src">' + esc(e.content.title) + '</span>';
+      div.innerHTML += e.content.html || '';
+      chat.appendChild(div);
+    });
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function rehydrateChat() {
+    if (chatLang === I18N.get()) return;
+    chatLang = I18N.get();
+    chatEntries.forEach(e => {
+      if (e.welcome) e.content = welcomeContent();
+      else if (e.query != null) e.content = AI.answer(e.query) || e.content;
+    });
+    renderChat();
+  }
+
   function renderAI() {
     renderSuggestions();
     const fng = Data.store.fng;
@@ -443,32 +484,18 @@ const App = (() => {
         '<div class="tl-sub">' + esc(st.msg) + '</div></div></div>';
     }).join('') : '<div class="empty-note">' + esc(I18N.t('ai.none')) + '</div>';
 
-    if (!chat.children.length) {
-      const sugg = I18N.t('ai.suggestions').split(' | ');
-      const welcome = {
-        title: I18N.t('ai.welcomeTitle'),
-        html: '<p>' + I18N.t('ai.welcome', {
-          price: esc(sugg[0] || ''), rsi: esc(sugg[1] || ''), news: esc(sugg[2] || ''),
-          sentiment: esc(sugg[3] || ''), chain: esc(sugg[4] || '')
-        }) + '</p>' +
-          '<p>' + (fng ? I18N.t('overview.gauge') + ' <strong>' + fng.value + '</strong>' + (I18N.get() === 'zh' ? '（' : '(') + esc(fng.label) + (I18N.get() === 'zh' ? '）' : ')') : esc(I18N.t('ai.chainLoading'))) + (I18N.get() === 'zh' ? '，' : ', ') +
-          (g ? I18N.t('overview.totalMc') + ' <strong>' + Data.fmtNum(g.totalMc, 1) + ' USD</strong>' : '') + (I18N.get() === 'zh' ? '。' : '.') + '</p>'
-      };
-      appendChat('ai', welcome);
+    if (!chatEntries.length) {
+      appendChat('ai', welcomeContent(), null, true);
+    } else {
+      rehydrateChat();
+      renderChat();
     }
   }
-
-  function appendChat(role, content) {
-    const chat = $('chatLog');
-    if (!chat) return;
-    const div = document.createElement('div');
-    div.className = 'chat-msg ' + role;
-    if (content.title) div.innerHTML = '<span class="src">' + esc(content.title) + '</span>';
-    div.innerHTML += content.html || '';
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
+  function appendChat(role, content, query, welcome) {
+    chatEntries.push({ role, content, query, welcome: !!welcome });
+    if (welcome) chatLang = I18N.get();
+    renderChat();
   }
-
   async function ask(text) {
     const q = String(text || '').trim();
     if (!q) return;
@@ -480,7 +507,7 @@ const App = (() => {
     }
     const ans = AI.answer(q);
     setTimeout(() => {
-      appendChat('ai', ans);
+      appendChat('ai', ans, q);
     }, 180);
   }
 
@@ -517,7 +544,7 @@ const App = (() => {
       label.textContent = I18N.t('badge.mixed');
     }
     $('footerStatus').textContent = I18N.t('footer.source', {
-      live: liveCount, demo: demoCount, time: new Date().toLocaleTimeString('zh-CN', { hour12: false })
+      live: liveCount, demo: demoCount, time: new Date().toLocaleTimeString(I18N.get() === 'zh' ? 'zh-CN' : I18N.get() === 'es' ? 'es-ES' : 'en-US', { hour12: false })
     });
   }
 
@@ -635,6 +662,7 @@ const App = (() => {
     I18N.translateStatic();
     document.querySelectorAll('#langSwitch button').forEach(b => b.classList.toggle('active', b.dataset.lang === I18N.get()));
     document.addEventListener('langchange', () => {
+      Data.localizeStoreNews();
       renderView(document.querySelector('.view.active').id.replace('view-', ''));
       renderStatus();
     });

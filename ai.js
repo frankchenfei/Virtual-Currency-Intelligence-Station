@@ -48,8 +48,9 @@ const AI = (() => {
     hbar: 'HBAR', hedera: 'HBAR'
   };
 
-  const FNG_ZH = {
-    'Extreme Fear': '极度恐慌', 'Fear': '恐慌', 'Neutral': '中性', 'Greed': '贪婪', 'Extreme Greed': '极度贪婪'
+  const FNG_LABELS = {
+    zh: { 'Extreme Fear': '极度恐慌', 'Fear': '恐慌', 'Neutral': '中性', 'Greed': '贪婪', 'Extreme Greed': '极度贪婪' },
+    es: { 'Extreme Fear': 'Miedo extremo', 'Fear': 'Miedo', 'Neutral': 'Neutral', 'Greed': 'Codicia', 'Extreme Greed': 'Codicia extrema' }
   };
 
   function esc(s) {
@@ -90,7 +91,8 @@ const AI = (() => {
   function fngLabel() {
     const f = Data.store.fng;
     if (!f || !f.label) return '';
-    if (I18N.get() === 'zh' && FNG_ZH[f.label]) return FNG_ZH[f.label];
+    const map = FNG_LABELS[I18N.get()];
+    if (map && map[f.label]) return map[f.label];
     return f.label;
   }
 
@@ -277,7 +279,7 @@ const AI = (() => {
       title: I18N.t('ai.signalTitle', { symbol }),
       html: '<ul>' + list.map(s => {
         const st = signalText(s);
-        return '<li><strong>' + esc(st.title) + '</strong>（' + esc(st.type) + '）' + esc(st.msg) + '</li>';
+        return '<li><strong>' + esc(st.title) + '</strong>' + (I18N.get() === 'zh' ? '（' : '(') + esc(st.type) + (I18N.get() === 'zh' ? '）' : ')') + esc(st.msg) + '</li>';
       }).join('') + '</ul>'
     };
   }
@@ -289,7 +291,7 @@ const AI = (() => {
     return {
       title: I18N.t('ai.newsTitle', { symbol }),
       html: '<p>' + I18N.t('ai.newsList', { n: n.items.length, pos: n.pos, neg: n.neg, neu: n.neu }) + '</p>' +
-        '<ul>' + n.items.slice(0, 4).map(it => '<li><strong>' + esc(it.title) + '</strong> <span class="muted">（' + esc(it.source) + ' · ' + esc(sent[it.sentiment] || '') + '）</span></li>').join('') + '</ul>'
+        '<ul>' + n.items.slice(0, 4).map(it => '<li><strong>' + esc(it.title) + '</strong> <span class="muted">' + (I18N.get() === 'zh' ? '（' : '(') + esc(it.source) + ' · ' + esc(sent[it.sentiment] || '') + (I18N.get() === 'zh' ? '）' : ')') + '</span></li>').join('') + '</ul>'
     };
   }
 
@@ -324,7 +326,7 @@ const AI = (() => {
   function marketAnswer() {
     const g = Data.store.global;
     const fng = Data.store.fng;
-    const fngTxt = fng ? '<strong>' + fng.value + '</strong>（' + esc(fngLabel()) + '）' : esc(I18N.t('ai.chainLoading'));
+    const fngTxt = fng ? '<strong>' + fng.value + '</strong>' + (I18N.get() === 'zh' ? '（' : '(') + esc(fngLabel()) + (I18N.get() === 'zh' ? '）' : ')') : esc(I18N.t('ai.chainLoading'));
     return {
       title: I18N.t('ai.marketTitle'),
       html: '<p>' + I18N.t('ai.marketHtml', {
@@ -399,5 +401,5 @@ const AI = (() => {
     };
   }
 
-  return { scoreNews, detectCoin, generateMarketInsight, generateDailyBrief, answer, signalText, esc };
+  return { scoreNews, detectCoin, generateMarketInsight, generateDailyBrief, answer, signalText, esc, fngLabel };
 })();

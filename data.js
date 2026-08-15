@@ -6,6 +6,7 @@ const Data = (() => {
     indicators: {},
     depth: {},
     news: [],
+    newsSource: null,
     fng: null,
     fngHistory: [],
     global: null,
@@ -138,15 +139,29 @@ const Data = (() => {
   }
 
   const DEMO_NEWS = [
-    { id: 9001, source: 'CoinDesk', title: '比特币现货 ETF 连续第四日净流入，机构配置需求升温', body: '多家资管机构的比特币现货 ETF 产品连续第四日录得净流入，市场对数字资产作为配置资产的态度进一步改善。', published_on: Date.now() / 1000 - 3600, categories: ['BTC', 'ETF'], url: 'https://www.coindesk.com', imageurl: '', sentiment: 'positive', coins: ['BTC'] },
-    { id: 9002, source: 'The Block', title: '以太坊基金会宣布新一轮生态资助计划，Layer 2 扩容项目集中入选', body: '以太坊基金会公布新一轮资助名单，重点覆盖 Layer 2 扩容、账户抽象和开发者工具，生态活跃度回升。', published_on: Date.now() / 1000 - 7200, categories: ['ETH'], url: 'https://www.theblock.co', imageurl: '', sentiment: 'positive', coins: ['ETH'] },
-    { id: 9003, source: 'CryptoSlate', title: 'Solana 网络单日交易笔数创新高，meme 与 DeFi 板块交易热度同时抬升', body: 'Solana 主网日交易笔数刷新纪录，低费率与高吞吐吸引更多零售和做市资金参与。', published_on: Date.now() / 1000 - 10800, categories: ['SOL'], url: 'https://cryptoslate.com', imageurl: '', sentiment: 'positive', coins: ['SOL'] },
-    { id: 9004, source: 'Decrypt', title: '某交易所遭安全审计暴露 API 权限漏洞，涉及部分大户钱包授权', body: '安全审计报告披露某交易所 API 权限管理存在风险，提醒用户及时清理第三方授权并启用白名单。', published_on: Date.now() / 1000 - 18000, categories: ['Security'], url: 'https://decrypt.co', imageurl: '', sentiment: 'negative', coins: [] },
-    { id: 9005, source: 'Cointelegraph', title: '欧洲监管机构重申 MiCA 稳定币合规要求，多家发行商调整储备披露', body: '欧洲监管机构再次强调 MiCA 框架下的稳定币储备透明要求，短期或增加发行商合规成本。', published_on: Date.now() / 1000 - 26000, categories: ['Regulation'], url: 'https://cointelegraph.com', imageurl: '', sentiment: 'negative', coins: [] },
-    { id: 9006, source: 'Blockworks', title: 'BTC 减半后矿工收入结构变化，手续费占比阶段性升至 8%', body: '链上数据显示减半后矿工收入中手续费占比阶段性上升，网络活跃度保持韧性。', published_on: Date.now() / 1000 - 40000, categories: ['BTC', 'Mining'], url: 'https://blockworks.co', imageurl: '', sentiment: 'neutral', coins: ['BTC'] },
-    { id: 9007, source: 'CoinGecko', title: 'AI 叙事代币板块周度资金关注度上升，与美股 AI 板块联动明显', body: 'AI 相关加密资产近一周关注度上升，市场将其视为与科技股联动的风险资产类别。', published_on: Date.now() / 1000 - 52000, categories: ['AI'], url: 'https://www.coingecko.com', imageurl: '', sentiment: 'neutral', coins: [] },
-    { id: 9008, source: 'The Defiant', title: 'DeFi 总锁仓量周环比增长 3.2%，以太坊 L2 与再质押协议贡献主要增量', body: 'DeFi 总锁仓量延续增长，流动性集中在以太坊主网与 Layer 2 生态。', published_on: Date.now() / 1000 - 64000, categories: ['DeFi'], url: 'https://thedefiant.io', imageurl: '', sentiment: 'positive', coins: ['ETH'] }
+    { id: 9001, source: 'CoinDesk', title: '比特币现货 ETF 连续第四日净流入，机构配置需求升温', body: '多家资管机构的比特币现货 ETF 产品连续第四日录得净流入，市场对数字资产作为配置资产的态度进一步改善。', titleEn: 'Bitcoin spot ETFs post fourth straight day of net inflows as institutional demand rises', titleEs: 'Los ETF al contado de Bitcoin suman cuatro días de entradas netas mientras crece la demanda institucional', bodyEn: 'Bitcoin spot ETF products recorded net inflows for a fourth consecutive day, signaling improving institutional appetite for digital assets as a portfolio allocation.', bodyEs: 'Los ETF al contado de Bitcoin registran entradas netas por cuarto día consecutivo, lo que refleja un mayor interés institucional por los activos digitales como asignación de cartera.', published_on: Date.now() / 1000 - 3600, categories: ['BTC', 'ETF'], url: 'https://www.coindesk.com', imageurl: '', sentiment: 'positive', coins: ['BTC'] },
+    { id: 9002, source: 'The Block', title: '以太坊基金会宣布新一轮生态资助计划，Layer 2 扩容项目集中入选', body: '以太坊基金会公布新一轮资助名单，重点覆盖 Layer 2 扩容、账户抽象和开发者工具，生态活跃度回升。', titleEn: 'Ethereum Foundation launches new ecosystem grants with Layer 2 projects in focus', titleEs: 'La Fundación Ethereum lanza nuevas subvenciones centradas en proyectos Layer 2', bodyEn: 'The Ethereum Foundation announced a new round of grants covering Layer 2 scaling, account abstraction and developer tooling, boosting ecosystem activity.', bodyEs: 'La Fundación Ethereum anunció una nueva ronda de subvenciones centrada en escalado Layer 2, abstracción de cuentas y herramientas para desarrolladores, elevando la actividad del ecosistema.', published_on: Date.now() / 1000 - 7200, categories: ['ETH'], url: 'https://www.theblock.co', imageurl: '', sentiment: 'positive', coins: ['ETH'] },
+    { id: 9003, source: 'CryptoSlate', title: 'Solana 网络单日交易笔数创新高，meme 与 DeFi 板块交易热度同时抬升', body: 'Solana 主网日交易笔数刷新纪录，低费率与高吞吐吸引更多零售和做市资金参与。', titleEn: 'Solana hits record daily transactions as meme and DeFi activity climb', titleEs: 'Solana marca récord de transacciones diarias mientras suben meme y DeFi', bodyEn: "Solana's mainnet set a new daily transaction record as low fees and high throughput attract more retail and market-making flows.", bodyEs: 'Solana batió su récord de transacciones diarias; las comisiones bajas y el alto rendimiento atraen más flujos minoristas y de creadores de mercado.', published_on: Date.now() / 1000 - 10800, categories: ['SOL'], url: 'https://cryptoslate.com', imageurl: '', sentiment: 'positive', coins: ['SOL'] },
+    { id: 9004, source: 'Decrypt', title: '某交易所遭安全审计暴露 API 权限漏洞，涉及部分大户钱包授权', body: '安全审计报告披露某交易所 API 权限管理存在风险，提醒用户及时清理第三方授权并启用白名单。', titleEn: 'Exchange security audit exposes API permission flaws affecting large wallet approvals', titleEs: 'Auditoría de seguridad revela fallos de permisos API en un exchange y afecta aprobaciones de grandes carteras', bodyEn: 'A security audit reported API permission risks at an exchange, urging users to revoke third-party approvals and enable allowlists.', bodyEs: 'Un informe de seguridad detectó riesgos en la gestión de permisos API de un exchange y recomienda revocar autorizaciones de terceros y activar listas blancas.', published_on: Date.now() / 1000 - 18000, categories: ['Security'], url: 'https://decrypt.co', imageurl: '', sentiment: 'negative', coins: [] },
+    { id: 9005, source: 'Cointelegraph', title: '欧洲监管机构重申 MiCA 稳定币合规要求，多家发行商调整储备披露', body: '欧洲监管机构再次强调 MiCA 框架下的稳定币储备透明要求，短期或增加发行商合规成本。', titleEn: 'European regulators reaffirm MiCA stablecoin requirements as issuers adjust disclosures', titleEs: 'Reguladores europeos reafirman los requisitos MiCA para stablecoins y los emisores ajustan sus informes', bodyEn: 'Regulators again stressed reserve transparency under MiCA, which may raise near-term compliance costs for stablecoin issuers.', bodyEs: 'Los reguladores volvieron a exigir transparencia sobre las reservas en el marco de MiCA, lo que puede elevar los costes de cumplimiento a corto plazo.', published_on: Date.now() / 1000 - 26000, categories: ['Regulation'], url: 'https://cointelegraph.com', imageurl: '', sentiment: 'negative', coins: [] },
+    { id: 9006, source: 'Blockworks', title: 'BTC 减半后矿工收入结构变化，手续费占比阶段性升至 8%', body: '链上数据显示减半后矿工收入中手续费占比阶段性上升，网络活跃度保持韧性。', titleEn: 'Post-halving shift: fee share of miner revenue climbs to 8%', titleEs: 'Tras el halving, la cuota de comisiones en los ingresos mineros sube al 8%', bodyEn: 'On-chain data shows the fee share of miner revenue rising after the halving, with network activity holding up.', bodyEs: 'Los datos on-chain muestran que la cuota de comisiones en los ingresos de los mineros sube tras el halving mientras la actividad de la red se mantiene.', published_on: Date.now() / 1000 - 40000, categories: ['BTC', 'Mining'], url: 'https://blockworks.co', imageurl: '', sentiment: 'neutral', coins: ['BTC'] },
+    { id: 9007, source: 'CoinGecko', title: 'AI 叙事代币板块周度资金关注度上升，与美股 AI 板块联动明显', body: 'AI 相关加密资产近一周关注度上升，市场将其视为与科技股联动的风险资产类别。', titleEn: 'AI narrative tokens draw more weekly attention, tracking US tech stocks', titleEs: 'Los tokens de narrativa IA atraen más atención semanal y siguen a las tecnológicas de EE. UU.', bodyEn: 'Crypto assets tied to the AI narrative gained attention over the past week, with markets treating them as a risk-asset class correlated with tech equities.', bodyEs: 'Los criptoactivos vinculados a la narrativa IA ganaron atención esta semana; el mercado los trata como activos de riesgo correlacionados con las tecnológicas.', published_on: Date.now() / 1000 - 52000, categories: ['AI'], url: 'https://www.coingecko.com', imageurl: '', sentiment: 'neutral', coins: [] },
+    { id: 9008, source: 'The Defiant', title: 'DeFi 总锁仓量周环比增长 3.2%，以太坊 L2 与再质押协议贡献主要增量', body: 'DeFi 总锁仓量延续增长，流动性集中在以太坊主网与 Layer 2 生态。', titleEn: 'DeFi TVL rises 3.2% week-over-week, led by Ethereum L2s and restaking', titleEs: 'El TVL de DeFi sube 3,2% semanal, impulsado por L2 de Ethereum y restaking', bodyEn: 'DeFi total value locked keeps growing, with liquidity concentrated in Ethereum mainnet and Layer 2 ecosystems.', bodyEs: 'El valor total bloqueado en DeFi sigue creciendo, con liquidez concentrada en Ethereum y su ecosistema Layer 2.', published_on: Date.now() / 1000 - 64000, categories: ['DeFi'], url: 'https://thedefiant.io', imageurl: '', sentiment: 'positive', coins: ['ETH'] }
   ];
+
+  function localizeNews(list) {
+    const lang = I18N.get();
+    if (lang === 'en') return list.map(n => n.titleEn ? Object.assign({}, n, { title: n.titleEn, body: n.bodyEn || n.body }) : n);
+    if (lang === 'es') return list.map(n => n.titleEs ? Object.assign({}, n, { title: n.titleEs, body: n.bodyEs || n.body }) : n);
+    return list.map(n => {
+      const src = DEMO_NEWS.find(d => d.id === n.id);
+      return src ? Object.assign({}, n, { title: src.title, body: src.body }) : n;
+    });
+  }
+
+  function localizeStoreNews() {
+    if (store.newsSource === 'demo' && store.news.length) store.news = localizeNews(store.news);
+  }
 
   function demoWhales() {
     const rows = [
@@ -182,7 +197,7 @@ const Data = (() => {
           volume: +r.volume, quoteVolume: +r.quoteVolume, source: 'live'
         };
       });
-      setStatus('binance', true, I18N.t('status.binance'), 'REST 24hr ticker');
+      setStatus('binance', true, I18N.t('status.binance'), I18N.t('status.ticker24'));
     } catch (e) {
       store.tickers = demoTickers();
       setStatus('binance', false, I18N.t('status.binance'), I18N.t('status.demo'));
@@ -240,7 +255,7 @@ const Data = (() => {
         title: n.title, body: n.body, categories: n.categories || [],
         published_on: n.published_on, url: n.url, imageurl: n.imageurl || '', sentiment: 'neutral', coins: []
       }));
-      setStatus('news', true, I18N.t('status.news'), items.length + ' items');
+      setStatus('news', true, I18N.t('status.news'), I18N.t('status.items', { n: items.length }));
     } catch (e) {
       setStatus('news', false, I18N.t('status.news'), I18N.t('status.demo'));
     }
@@ -256,7 +271,7 @@ const Data = (() => {
           sentiment: 'neutral', coins: (p.currencies || []).map(c => c.code)
         }));
         items = items.concat(extra);
-        setStatus('cryptopanic', true, I18N.t('status.cryptopanic'), extra.length + ' items');
+        setStatus('cryptopanic', true, I18N.t('status.cryptopanic'), I18N.t('status.items', { n: extra.length }));
       } catch (e) {
         setStatus('cryptopanic', false, I18N.t('status.cryptopanic'), I18N.t('status.checkKey'));
       }
@@ -268,7 +283,8 @@ const Data = (() => {
       n.score = scored.score;
       n.coins = scored.coins.length ? scored.coins : n.coins;
     });
-    store.news = items.length ? items : DEMO_NEWS;
+    store.news = items.length ? items : localizeNews(DEMO_NEWS);
+    store.newsSource = items.length ? 'api' : 'demo';
     notify();
   }
 
@@ -367,7 +383,7 @@ const Data = (() => {
           time: new Date(t.timestamp * 1000).getTime()
         }));
         store.onchain.whalesSource = 'live';
-        setStatus('whale', true, I18N.t('status.whale'), store.onchain.whales.length + ' tx');
+        setStatus('whale', true, I18N.t('status.whale'), I18N.t('status.txCount', { n: store.onchain.whales.length }));
       } else {
         store.onchain.whales = demoWhales();
         store.onchain.whalesSource = 'demo';
@@ -398,7 +414,7 @@ const Data = (() => {
       const closes = store.klines[key].data.map(k => +k[4]);
       if (store.tickers[coin.symbol]) store.tickers[coin.symbol].spark = closes.slice(-24);
     }));
-    setStatus('klines', true, I18N.t('status.klines'), CONFIG.coins.length + ' symbols 1h');
+    setStatus('klines', true, I18N.t('status.klines'), I18N.t('status.symbols1h', { n: CONFIG.coins.length }));
     notify();
   }
 
@@ -477,7 +493,7 @@ const Data = (() => {
         } catch (e) { /* ignore malformed frame */ }
       };
       ws.onerror = () => { setStatus('ws', false, I18N.t('status.ws'), I18N.t('status.unavailable')); try { ws.close(); } catch (e) {} ws = null; };
-      ws.onopen = () => setStatus('ws', true, I18N.t('status.ws'), CONFIG.coins.length + ' symbols');
+      ws.onopen = () => setStatus('ws', true, I18N.t('status.ws'), I18N.t('status.symbols', { n: CONFIG.coins.length }));
     } catch (e) {
       setStatus('ws', false, I18N.t('status.ws'), I18N.t('status.unavailable'));
     }
@@ -508,6 +524,6 @@ const Data = (() => {
 
   return {
     store, subscribe, start, getKeys, saveKeys, setStatus, fetchJson, setActive,
-    loadKlines, loadDepth, loadNews, loadFng, loadGlobal, loadOnchain, scanSignals, fmtNum, seededRandom, hashSeed, demoKlines
+    loadKlines, loadDepth, loadNews, loadFng, loadGlobal, loadOnchain, scanSignals, fmtNum, seededRandom, hashSeed, demoKlines, localizeStoreNews
   };
 })();

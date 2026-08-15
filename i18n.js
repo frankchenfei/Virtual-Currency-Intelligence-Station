@@ -48,6 +48,13 @@ const I18N = (() => {
     document.querySelectorAll('[data-i18n-aria]').forEach(el => {
       el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria')));
     });
+    const pageName = t('app.name');
+    if (pageName !== 'app.name') document.title = 'CryptoIntel · ' + pageName;
+    const desc = t('meta.desc');
+    if (desc !== 'meta.desc') {
+      document.querySelector('meta[name="description"]').setAttribute('content', desc);
+      document.querySelector('meta[property="og:description"]').setAttribute('content', desc);
+    }
   }
 
   return { t, get, set, DICT, translateStatic };
