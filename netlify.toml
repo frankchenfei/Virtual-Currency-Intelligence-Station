@@ -1,0 +1,11 @@
+[build]
+  publish = "."
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "DENY"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://data-api.binance.vision https://stream.binance.com wss://stream.binance.com:9443 https://min-api.cryptocompare.com https://api.alternative.me https://api.llama.fi https://mempool.space https://api.blockchain.info https://api.coingecko.com https://cryptopanic.com https://api.whale-alert.io; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
