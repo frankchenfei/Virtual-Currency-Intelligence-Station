@@ -1,61 +1,882 @@
-/* 三语国际化核心：合并语言包、切换语言、静态翻译 */
-const I18N = (() => {
-  const LANG_KEY = 'cryptoIntelLang';
-  const DICT = {
-    zh: window.__LANG_zh || {},
-    en: window.__LANG_en || {},
-    es: window.__LANG_es || {}
+window.I18N = (function () {
+  'use strict';
+  var LANGS = {
+    zh: { label: '中文' },
+    en: { label: 'English' },
+    es: { label: 'Español' },
+    pt: { label: 'Português' },
+    fr: { label: 'Français' }
+  };
+  var P = {
+    '资本流径': { en: 'Capital Flow', es: 'Flujo de Capital', pt: 'Fluxo de Capital', fr: 'Flux de Capitaux' },
+    'CAPITAL FLOW INTELLIGENCE': { en: 'CAPITAL FLOW INTELLIGENCE', es: 'INTELIGENCIA DE FLUJOS DE CAPITAL', pt: 'INTELIGÊNCIA DE FLUXOS DE CAPITAL', fr: 'INTELLIGENCE DES FLUX DE CAPITAUX' },
+    '市场总览': { en: 'Market Overview', es: 'Visión General', pt: 'Visão Geral', fr: 'Vue d\'ensemble' },
+    '资金流向图谱': { en: 'Capital Flow Map', es: 'Mapa de Flujos', pt: 'Mapa de Fluxos', fr: 'Carte des Flux' },
+    '融资动态': { en: 'Funding Activity', es: 'Actividad de Financiación', pt: 'Atividade de Captação', fr: 'Activité de Financement' },
+    '机构与公司': { en: 'Institutions & Companies', es: 'Instituciones y Empresas', pt: 'Instituições e Empresas', fr: 'Institutions et Entreprises' },
+    '信号监控': { en: 'Signal Monitor', es: 'Monitoreo de Señales', pt: 'Monitor de Sinais', fr: 'Surveillance des Signaux' },
+    'AI研判': { en: 'AI Intelligence', es: 'IA Análisis', pt: 'IA Análise', fr: 'IA Analyse' },
+    '生态全景': { en: 'Ecosystem View', es: 'Panorama del Ecosistema', pt: 'Panorama do Ecossistema', fr: 'Vue de l\'Écosystème' },
+    '演示数据 · 非实时': { en: 'Demo data · Not live', es: 'Datos demo · No en tiempo real', pt: 'Dados demo · Não em tempo real', fr: 'Données démo · Pas en temps réel' },
+    '数据截至 2026-08-15 08:40': { en: 'Data as of 2026-08-15 08:40', es: 'Datos al 2026-08-15 08:40', pt: 'Dados em 2026-08-15 08:40', fr: 'Données au 2026-08-15 08:40' },
+    '搜索公司、机构、交易...': { en: 'Search companies, institutions, deals...', es: 'Buscar empresas, instituciones, operaciones...', pt: 'Buscar empresas, instituições, negócios...', fr: 'Rechercher entreprises, institutions, opérations...' },
+    '时间范围': { en: 'Time range', es: 'Período', pt: 'Período', fr: 'Période' },
+    '近30天': { en: 'Last 30 days', es: 'Últimos 30 días', pt: 'Últimos 30 dias', fr: '30 derniers jours' },
+    '近90天': { en: 'Last 90 days', es: 'Últimos 90 días', pt: 'Últimos 90 dias', fr: '90 derniers jours' },
+    '近6个月': { en: 'Last 6 months', es: 'Últimos 6 meses', pt: 'Últimos 6 meses', fr: '6 derniers mois' },
+    '近12个月': { en: 'Last 12 months', es: 'Últimos 12 meses', pt: 'Últimos 12 meses', fr: '12 derniers mois' },
+    '近30天融资总额': { en: '30d funding total', es: 'Total financiado 30d', pt: 'Total captado 30d', fr: 'Total levé 30j' },
+    '近30天交易事件': { en: '30d deals', es: 'Operaciones 30d', pt: 'Negócios 30d', fr: 'Opérations 30j' },
+    '近30天活跃机构': { en: '30d active investors', es: 'Inversores activos 30d', pt: 'Investidores ativos 30d', fr: 'Investisseurs actifs 30j' },
+    '最热赛道': { en: 'Hottest sector', es: 'Sector más activo', pt: 'Setor mais quente', fr: 'Secteur le plus actif' },
+    '环比上期': { en: 'vs prev period', es: 'vs periodo anterior', pt: 'vs período anterior', fr: 'vs période préc.' },
+    '月度融资趋势': { en: 'Monthly funding trend', es: 'Tendencia mensual', pt: 'Tendência mensal', fr: 'Tendance mensuelle' },
+    '赛道资金分布': { en: 'Sector funding mix', es: 'Distribución por sector', pt: 'Distribuição por setor', fr: 'Répartition sectorielle' },
+    '轮次结构': { en: 'Round structure', es: 'Estructura de rondas', pt: 'Estrutura de rodadas', fr: 'Structure des tours' },
+    '区域热度': { en: 'Regional heat', es: 'Calor regional', pt: 'Calor regional', fr: 'Chaleur régionale' },
+    '市场情绪温度': { en: 'Market sentiment', es: 'Sentimiento de mercado', pt: 'Sentimento do mercado', fr: 'Sentiment du marché' },
+    '综合评分': { en: 'Composite score', es: 'Puntuación compuesta', pt: 'Pontuação composta', fr: 'Score composite' },
+    '偏热': { en: 'Hot', es: 'Caliente', pt: 'Quente', fr: 'Chaud' },
+    '重磅交易': { en: 'Top deals', es: 'Principales operaciones', pt: 'Principais negócios', fr: 'Opérations majeures' },
+    '按金额': { en: 'By amount', es: 'Por monto', pt: 'Por valor', fr: 'Par montant' },
+    '日期': { en: 'Date', es: 'Fecha', pt: 'Data', fr: 'Date' },
+    '公司': { en: 'Company', es: 'Empresa', pt: 'Empresa', fr: 'Entreprise' },
+    '赛道': { en: 'Sector', es: 'Sector', pt: 'Setor', fr: 'Secteur' },
+    '金额': { en: 'Amount', es: 'Monto', pt: 'Valor', fr: 'Montant' },
+    '领投方': { en: 'Lead', es: 'Líder', pt: 'Líder', fr: 'Meneur' },
+    '跟投方': { en: 'Co-investors', es: 'Co-inversores', pt: 'Co-investidores', fr: 'Co-investisseurs' },
+    '活跃机构': { en: 'Active investors', es: 'Inversores activos', pt: 'Investidores ativos', fr: 'Investisseurs actifs' },
+    '近90天出手': { en: 'Last 90d activity', es: 'Actividad 90d', pt: 'Atividade 90d', fr: 'Activité 90j' },
+    '导出概览': { en: 'Export overview', es: 'Exportar resumen', pt: 'Exportar resumo', fr: 'Exporter le résumé' },
+    '概览已导出': { en: 'Overview exported', es: 'Resumen exportado', pt: 'Resumo exportado', fr: 'Résumé exporté' },
+    '融资总额（柱） · 事件数（点）': { en: 'Funding (bars) · Deals (dots)', es: 'Financiación (barras) · Operaciones (puntos)', pt: 'Captação (barras) · Negócios (pontos)', fr: 'Financement (barres) · Opérations (points)' },
+    '合计': { en: 'Total', es: 'Total', pt: 'Total', fr: 'Total' },
+    '其他': { en: 'Other', es: 'Otros', pt: 'Outros', fr: 'Autres' },
+    '一级市场': { en: 'Primary market', es: 'Mercado primario', pt: 'Mercado primário', fr: 'Marché primaire' },
+    '二级市场': { en: 'Secondary market', es: 'Mercado secundario', pt: 'Mercado secundário', fr: 'Marché secondaire' },
+    '政策环境': { en: 'Policy', es: 'Política', pt: 'Política', fr: 'Politique' },
+    '资金流动性': { en: 'Liquidity', es: 'Liquidez', pt: 'Liquidez', fr: 'Liquidité' },
+    '仅看跨境资金': { en: 'Cross-border only', es: 'Solo transfronterizo', pt: 'Somente transfronteiriço', fr: 'Transfrontalier seulement' },
+    '聚焦节点': { en: 'Focus node', es: 'Enfocar nodo', pt: 'Focar nó', fr: 'Cibler un nœud' },
+    '重置视图': { en: 'Reset view', es: 'Restablecer vista', pt: 'Redefinir vista', fr: 'Réinitialiser' },
+    '节点说明': { en: 'Node legend', es: 'Leyenda de nodos', pt: 'Legenda de nós', fr: 'Légende des nœuds' },
+    '投资机构': { en: 'Investor', es: 'Inversor', pt: 'Investidor', fr: 'Investisseur' },
+    '被投公司': { en: 'Portfolio company', es: 'Empresa del portafolio', pt: 'Empresa do portfólio', fr: 'Entreprise du portefeuille' },
+    '赛道枢纽': { en: 'Sector hub', es: 'Centro sectorial', pt: 'Hub do setor', fr: 'Pôle sectoriel' },
+    '节点详情': { en: 'Node details', es: 'Detalles del nodo', pt: 'Detalhes do nó', fr: 'Détails du nœud' },
+    '图谱内参与金额': { en: 'Amount in graph', es: 'Monto en el mapa', pt: 'Valor no mapa', fr: 'Montant dans le graphe' },
+    '关联交易': { en: 'Related deals', es: 'Operaciones relacionadas', pt: 'Negócios relacionados', fr: 'Opérations liées' },
+    '图谱内融资额': { en: 'Raised in graph', es: 'Captado en el mapa', pt: 'Captado no mapa', fr: 'Levés dans le graphe' },
+    '关联公司': { en: 'Related companies', es: 'Empresas relacionadas', pt: 'Empresas relacionadas', fr: 'Entreprises liées' },
+    '图谱内金额': { en: 'Amount in graph', es: 'Monto en el mapa', pt: 'Valor no mapa', fr: 'Montant dans le graphe' },
+    '暂无': { en: 'None', es: 'Ninguno', pt: 'Nenhum', fr: 'Aucun' },
+    '暂无记录': { en: 'No records', es: 'Sin registros', pt: 'Sem registros', fr: 'Aucun enregistrement' },
+    '条': { en: '', es: '', pt: '', fr: '' },
+    '家': { en: '', es: '', pt: '', fr: '' },
+    '笔': { en: '', es: '', pt: '', fr: '' },
+    '亿': { en: 'B', es: 'M', pt: 'M', fr: 'M' },
+    '年': { en: '', es: '', pt: '', fr: '' },
+    '人': { en: '', es: '', pt: '', fr: '' },
+    '是': { en: 'Yes', es: 'Sí', pt: 'Sim', fr: 'Oui' },
+    '否': { en: 'No', es: 'No', pt: 'Não', fr: 'Non' }
+  };
+  var P2 = {
+    '全部赛道': { en: 'All sectors', es: 'Todos los sectores', pt: 'Todos os setores', fr: 'Tous les secteurs' },
+    '全部轮次': { en: 'All rounds', es: 'Todas las rondas', pt: 'Todas as rodadas', fr: 'Tous les tours' },
+    '全部金额': { en: 'All amounts', es: 'Todos los montos', pt: 'Todos os valores', fr: 'Tous les montants' },
+    '全部类型': { en: 'All types', es: 'Todos los tipos', pt: 'Todos os tipos', fr: 'Tous les types' },
+    '全部': { en: 'All', es: 'Todos', pt: 'Todos', fr: 'Tous' },
+    '高': { en: 'High', es: 'Alto', pt: 'Alto', fr: 'Élevé' },
+    '中': { en: 'Medium', es: 'Medio', pt: 'Médio', fr: 'Moyen' },
+    '低': { en: 'Low', es: 'Bajo', pt: 'Baixo', fr: 'Faible' },
+    '优先级': { en: 'priority', es: 'prioridad', pt: 'prioridade', fr: 'priorité' },
+    '全部分类': { en: 'All categories', es: 'Todas las categorías', pt: 'Todas as categorias', fr: 'Toutes les catégories' },
+    '机构动态': { en: 'Investor activity', es: 'Actividad de inversores', pt: 'Atividade de investidores', fr: 'Activité des investisseurs' },
+    '赛道动量': { en: 'Sector momentum', es: 'Impulso sectorial', pt: 'Momentum do setor', fr: 'Momentum sectoriel' },
+    '资金流向': { en: 'Capital flows', es: 'Flujos de capital', pt: 'Fluxos de capital', fr: 'Flux de capitaux' },
+    '估值预警': { en: 'Valuation alert', es: 'Alerta de valoración', pt: 'Alerta de avaliação', fr: 'Alerte de valorisation' },
+    '需关注': { en: 'Attention', es: 'Atención', pt: 'Atenção', fr: 'Attention' },
+    '活跃信号': { en: 'Active signals', es: 'Señales activas', pt: 'Sinais ativos', fr: 'Signaux actifs' },
+    '启用规则': { en: 'Rules enabled', es: 'Reglas activas', pt: 'Regras ativas', fr: 'Règles actives' },
+    '市场温度': { en: 'Market temperature', es: 'Temperatura de mercado', pt: 'Temperatura do mercado', fr: 'Température du marché' },
+    '运行中': { en: 'Running', es: 'Activo', pt: 'Ativo', fr: 'Actif' },
+    '高优先级信号': { en: 'High-priority signals', es: 'Señales de alta prioridad', pt: 'Sinais de alta prioridade', fr: 'Signaux haute priorité' },
+    '规则引擎': { en: 'Rules engine', es: 'Motor de reglas', pt: 'Mecanismo de regras', fr: 'Moteur de règles' },
+    '可配置检测条件': { en: 'Configurable conditions', es: 'Condiciones configurables', pt: 'Condições configuráveis', fr: 'Conditions configurables' },
+    '立即扫描': { en: 'Scan now', es: 'Escanear ahora', pt: 'Escanear agora', fr: 'Analyser maintenant' },
+    '扫描完成 · 检测到 ': { en: 'Scan complete · detected ', es: 'Escaneo completo · detectadas ', pt: 'Análise concluída · detectados ', fr: 'Analyse terminée · détectés ' },
+    ' 条活跃信号': { en: ' active signals', es: ' señales activas', pt: ' sinais ativos', fr: ' signaux actifs' },
+    '规则已启用': { en: 'Rule enabled', es: 'Regla activada', pt: 'Regra ativada', fr: 'Règle activée' },
+    '规则已停用': { en: 'Rule disabled', es: 'Regla desactivada', pt: 'Regra desativada', fr: 'Règle désactivée' },
+    '信号已启用': { en: 'Signal enabled', es: 'Señal activada', pt: 'Sinal ativado', fr: 'Signal activé' },
+    '信号已停用': { en: 'Signal disabled', es: 'Señal desactivada', pt: 'Sinal desativado', fr: 'Signal désactivé' },
+    '数据源交叉验证': { en: 'Cross-validated', es: 'Validación cruzada', pt: 'Validação cruzada', fr: 'Validation croisée' },
+    '规则自动生成': { en: 'Rule generated', es: 'Generado por regla', pt: 'Gerado por regra', fr: 'Généré par règle' },
+    '立即扫描': { en: 'Scan now', es: 'Escanear ahora', pt: 'Escanear agora', fr: 'Analyser maintenant' },
+    '导出CSV': { en: 'Export CSV', es: 'Exportar CSV', pt: 'Exportar CSV', fr: 'Exporter CSV' },
+    '交易明细已导出': { en: 'Deals exported', es: 'Operaciones exportadas', pt: 'Negócios exportados', fr: 'Opérations exportées' },
+    '没有匹配的交易': { en: 'No matching deals', es: 'No hay operaciones', pt: 'Nenhum negócio', fr: 'Aucune opération' },
+    '没有匹配的机构': { en: 'No matching institutions', es: 'No hay instituciones', pt: 'Nenhuma instituição', fr: 'Aucune institution' },
+    '搜索机构': { en: 'Search institutions', es: 'Buscar instituciones', pt: 'Buscar instituições', fr: 'Rechercher institutions' },
+    '管理规模': { en: 'AUM', es: 'Activos gestionados', pt: 'Ativos sob gestão', fr: 'Actifs gérés' },
+    '参与交易': { en: 'Deals', es: 'Operaciones', pt: 'Negócios', fr: 'Opérations' },
+    '参与金额': { en: 'Deployed amount', es: 'Monto invertido', pt: 'Valor investido', fr: 'Montant investi' },
+    '近30天出手': { en: '30d deals', es: 'Operaciones 30d', pt: 'Negócios 30d', fr: 'Opérations 30j' },
+    '近期交易': { en: 'Recent deals', es: 'Operaciones recientes', pt: 'Negócios recentes', fr: 'Opérations récentes' },
+    '融资历史 · ': { en: 'Funding history · ', es: 'Historial de financiación · ', pt: 'Histórico de captação · ', fr: 'Historique de financement · ' },
+    '投资机构': { en: 'Investors', es: 'Inversores', pt: 'Investidores', fr: 'Investisseurs' },
+    '累计融资': { en: 'Total raised', es: 'Total captado', pt: 'Total captado', fr: 'Total levé' },
+    '最新估值': { en: 'Latest valuation', es: 'Valoración actual', pt: 'Avaliação atual', fr: 'Valorisation actuelle' },
+    '最新轮次': { en: 'Latest round', es: 'Última ronda', pt: 'Última rodada', fr: 'Dernier tour' },
+    '团队规模': { en: 'Team size', es: 'Tamaño del equipo', pt: 'Tamanho da equipe', fr: 'Effectif' },
+    '本轮金额': { en: 'Round amount', es: 'Monto de la ronda', pt: 'Valor da rodada', fr: 'Montant du tour' },
+    '跨境资金': { en: 'Cross-border', es: 'Transfronterizo', pt: 'Transfronteiriço', fr: 'Transfrontalier' },
+    '交易备注': { en: 'Deal note', es: 'Nota de la operación', pt: 'Nota do negócio', fr: 'Note de l\'opération' },
+    '投资方': { en: 'Investors', es: 'Inversores', pt: 'Investidores', fr: 'Investisseurs' },
+    '同公司历史融资': { en: 'Company funding history', es: 'Historial de la empresa', pt: 'Histórico da empresa', fr: 'Historique de l\'entreprise' },
+    '成立': { en: 'Founded', es: 'Fundada', pt: 'Fundada', fr: 'Fondée' },
+    '成立于': { en: 'Founded in', es: 'Fundada en', pt: 'Fundada em', fr: 'Fondée en' },
+    ' · 管理规模 ': { en: ' · AUM ', es: ' · Activos ', pt: ' · Ativos ', fr: ' · Actifs ' },
+    ' · 当前': { en: ' · Stage: ', es: ' · Etapa: ', pt: ' · Estágio: ', fr: ' · Étape: ' },
+    ' · 领投 ': { en: ' · Lead ', es: ' · Líder ', pt: ' · Líder ', fr: ' · Meneur ' },
+    ' · 跟投': { en: ' · Co', es: ' · Co', pt: ' · Co', fr: ' · Co' },
+    ' · 占比 ': { en: ' · share ', es: ' · cuota ', pt: ' · participação ', fr: ' · part ' },
+    '单家平均 ': { en: 'Avg per investor ', es: 'Promedio por inversor ', pt: 'Média por investidor ', fr: 'Moyenne par investisseur ' },
+    ' 条': { en: '', es: '', pt: '', fr: '' },
+    ' 项': { en: '', es: '', pt: '', fr: '' },
+    ' 家': { en: '', es: '', pt: '', fr: '' },
+    ' 笔': { en: '', es: '', pt: '', fr: '' },
+    ' 年': { en: '', es: '', pt: '', fr: '' }
+  };
+  var P3 = {
+    '自动生成的投资环境解读与机会扫描': { en: 'Automated investment environment briefing and opportunity scan', es: 'Informe automático del entorno de inversión y escaneo de oportunidades', pt: 'Resumo automático do ambiente de investimento e varredura de oportunidades', fr: 'Analyse automatique de l\'environnement d\'investissement et scan d\'opportunités' },
+    '本地分析引擎': { en: 'Local rules engine', es: 'Motor local de reglas', pt: 'Mecanismo local de regras', fr: 'Moteur local de règles' },
+    'DeepSeek 增强': { en: 'DeepSeek enhanced', es: 'Mejorado con DeepSeek', pt: 'Aprimorado com DeepSeek', fr: 'Amélioré par DeepSeek' },
+    '复制摘要': { en: 'Copy summary', es: 'Copiar resumen', pt: 'Copiar resumo', fr: 'Copier le résumé' },
+    '导出PDF': { en: 'Export PDF', es: 'Exportar PDF', pt: 'Exportar PDF', fr: 'Exporter PDF' },
+    '引擎设置': { en: 'Engine settings', es: 'Configuración del motor', pt: 'Configuração do mecanismo', fr: 'Paramètres du moteur' },
+    '重新生成': { en: 'Regenerate', es: 'Regenerar', pt: 'Regenerar', fr: 'Régénérer' },
+    '生成中...': { en: 'Generating...', es: 'Generando...', pt: 'Generando...', fr: 'Génération...' },
+    '研判报告已更新': { en: 'Report updated', es: 'Informe actualizado', pt: 'Resumo atualizado', fr: 'Rapport mis à jour' },
+    'DeepSeek 报告已生成': { en: 'DeepSeek report ready', es: 'Informe DeepSeek listo', pt: 'Resumo DeepSeek pronto', fr: 'Rapport DeepSeek prêt' },
+    'DeepSeek 调用失败，已回退本地引擎': { en: 'DeepSeek call failed, fell back to local engine', es: 'Fallo de DeepSeek, se usó el motor local', pt: 'Falha do DeepSeek, usado mecanismo local', fr: 'Échec DeepSeek, moteur local utilisé' },
+    '摘要已复制': { en: 'Summary copied', es: 'Resumen copiado', pt: 'Resumo copiado', fr: 'Résumé copié' },
+    '复制失败': { en: 'Copy failed', es: 'Error al copiar', pt: 'Falha ao copiar', fr: 'Échec de copie' },
+    '一级市场投资研判 · 近30天': { en: 'Primary Market Intelligence · Last 30 days', es: 'Inteligencia de mercado primario · Últimos 30 días', pt: 'Inteligência do mercado primário · Últimos 30 dias', fr: 'Intelligence du marché primaire · 30 derniers jours' },
+    '市场温度 / 偏热': { en: 'Market temperature / Hot', es: 'Temperatura / Caliente', pt: 'Temperatura / Quente', fr: 'Température / Chaud' },
+    '赛道热度': { en: 'Sector heat', es: 'Calor sectorial', pt: 'Calor do setor', fr: 'Chaleur sectorielle' },
+    '机构行为': { en: 'Investor behavior', es: 'Comportamiento de inversores', pt: 'Comportamento dos investidores', fr: 'Comportement des investisseurs' },
+    '风险信号': { en: 'Risk signals', es: 'Señales de riesgo', pt: 'Sinais de risco', fr: 'Signaux de risque' },
+    '未来两周关注': { en: 'Next two weeks', es: 'Próximas dos semanas', pt: 'Próximas duas semanas', fr: 'Deux prochaines semaines' },
+    '赛道集中度': { en: 'Sector concentration', es: 'Concentración sectorial', pt: 'Concentração setorial', fr: 'Concentration sectorielle' },
+    '单笔均值': { en: 'Avg deal size', es: 'Tamaño promedio', pt: 'Valor médio', fr: 'Taille moyenne' },
+    '交易数量': { en: 'Deal count', es: 'Número de operaciones', pt: 'Número de negócios', fr: 'Nombre d\'opérations' },
+    '集中于 ': { en: 'Concentrated in ', es: 'Concentrado en ', pt: 'Concentrado em ', fr: 'Concentré dans ' },
+    '较上月 +6，处于偏热区间': { en: '+6 vs last month, hot range', es: '+6 vs mes anterior, rango caliente', pt: '+6 vs mês anterior, faixa quente', fr: '+6 vs mois préc., zone chaude' },
+    '头部项目拉动明显': { en: 'Large deals driving', es: 'Impulsado por grandes operaciones', pt: 'Impulsionado por grandes negócios', fr: 'Porté par les gros deals' },
+    '资金与政策合力推动': { en: 'Capital and policy tailwind', es: 'Impulso de capital y política', pt: 'Impulso de capital e políticas', fr: 'Capital et politiques favorables' },
+    '头部项目持续吸金': { en: 'Top projects keep raising', es: 'Los mejores siguen captando', pt: 'Os melhores seguem captando', fr: 'Les leaders continuent de lever' },
+    '近90天参与 ': { en: 'Participated in ', es: 'Participó en ', pt: 'Participou em ', fr: 'Participé à ' },
+    '连续三个月维持高净流入': { en: 'High net inflow for 3 months', es: 'Flujo neto alto por 3 meses', pt: 'Fluxo líquido alto por 3 meses', fr: 'Flux net élevé 3 mois' },
+    '环比回升': { en: 'Recovering QoQ', es: 'Recuperación trimestral', pt: 'Recuperação trimestral', fr: 'Reprise trimestrielle' },
+    '东南亚与中东占比扩大': { en: 'SEA and Middle East growing', es: 'ASEAN y Medio Oriente crecen', pt: 'Sudeste Asiático e Oriente Médio crescem', fr: 'Asie du Sud-Est et Moyen-Orient en hausse' },
+    'AI 大模型进入 D 轮前后估值谈判窗口，关注头部项目的估值锚点': { en: 'AI LLM rounds approach Series D; watch valuation anchors of leaders', es: 'Los LLM se acercan a Serie D; vigilar valoraciones', pt: 'LLMs se aproximam da Série D; observar avaliações', fr: 'Les LLM approchent la Série D; suivre les valorisations' },
+    '具身智能公司量产与交付数据成为下一轮融资定价关键': { en: 'Embodied AI production and delivery data will set next-round pricing', es: 'La producción y entrega definirán la próxima valoración', pt: 'Produção e entrega definirão a próxima avaliação', fr: 'Production et livraisons fixeront la prochaine valorisation' },
+    '国产 GPU D 轮密集交割后，观察生态适配与客户采购兑现': { en: 'After domestic GPU Series D wave, watch ecosystem fit and procurement', es: 'Tras la ola Serie D de GPUs, vigilar adopción y compras', pt: 'Após a onda Série D de GPUs, observar adoção e compras', fr: 'Après la vague Série D des GPU, suivre adoption et achats' },
+    '消费品牌 Pre-IPO 窗口重启，关注海外收入与盈利质量': { en: 'Consumer Pre-IPO window reopens; watch overseas revenue and margins', es: 'Se abre ventana Pre-IPO; vigilar ingresos y márgenes', pt: 'Janela Pré-IPO reabre; observar receitas e margens', fr: 'Fenêtre Pré-IPO rouverte; suivre revenus et marges' },
+    '政府引导基金出资比例上升，留意返投与落地条款变化': { en: 'Government funds increasing; watch local-investment clauses', es: 'Aumentan fondos públicos; vigilar cláusulas locales', pt: 'Fundos públicos aumentam; observar cláusulas locais', fr: 'Fonds publics en hausse; suivre les clauses locales' }
+  };
+  var P4 = {
+    '未找到匹配项': { en: 'No matches found', es: 'Sin resultados', pt: 'Nenhum resultado', fr: 'Aucun résultat' },
+    '换个关键词试试': { en: 'Try another keyword', es: 'Pruebe otra palabra', pt: 'Tente outra palavra', fr: 'Essayez un autre mot' },
+    '搜索结果 · ': { en: 'Results · ', es: 'Resultados · ', pt: 'Resultados · ', fr: 'Résultats · ' },
+    '交易': { en: 'Deal', es: 'Operación', pt: 'Negócio', fr: 'Opération' },
+    '最新信号': { en: 'Latest signals', es: 'Últimas señales', pt: 'Últimos sinais', fr: 'Derniers signaux' },
+    '数据已刷新 · ': { en: 'Data refreshed · ', es: 'Datos actualizados · ', pt: 'Dados atualizados · ', fr: 'Données actualisées · ' },
+    '分析引擎设置': { en: 'Analysis engine settings', es: 'Configuración del motor de análisis', pt: 'Configuração do mecanismo de análise', fr: 'Paramètres du moteur d\'analyse' },
+    '报告引擎': { en: 'Report engine', es: 'Motor de informes', pt: 'Mecanismo de relatórios', fr: 'Moteur de rapports' },
+    '本地规则引擎': { en: 'Local rules engine', es: 'Motor local de reglas', pt: 'Mecanismo local de regras', fr: 'Moteur local de règles' },
+    'DeepSeek API Key': { en: 'DeepSeek API Key', es: 'Clave API de DeepSeek', pt: 'Chave API do DeepSeek', fr: 'Clé API DeepSeek' },
+    '仅保存在本地浏览器，用于调用 DeepSeek 生成报告。': { en: 'Stored locally in your browser and used only to call DeepSeek for reports.', es: 'Se guarda solo en su navegador y se usa para llamar a DeepSeek.', pt: 'Armazenada apenas no navegador e usada para chamar o DeepSeek.', fr: 'Stockée localement dans le navigateur, utilisée uniquement pour DeepSeek.' },
+    '取消': { en: 'Cancel', es: 'Cancelar', pt: 'Cancelar', fr: 'Annuler' },
+    '保存设置': { en: 'Save settings', es: 'Guardar cambios', pt: 'Salvar configurações', fr: 'Enregistrer' },
+    '已切换至 DeepSeek 引擎': { en: 'Switched to DeepSeek engine', es: 'Cambiado al motor DeepSeek', pt: 'Alternado para o mecanismo DeepSeek', fr: 'Moteur DeepSeek activé' },
+    '已切换至本地引擎': { en: 'Switched to local engine', es: 'Cambiado al motor local', pt: 'Alternado para o mecanismo local', fr: 'Moteur local activé' },
+    '人工智能': { en: 'AI', es: 'IA', pt: 'IA', fr: 'IA' },
+    '具身智能': { en: 'Embodied AI', es: 'IA Corporal', pt: 'IA Incorporada', fr: 'IA Incarnée' },
+    '半导体': { en: 'Semiconductors', es: 'Semiconductores', pt: 'Semicondutores', fr: 'Semi-conducteurs' },
+    '新能源': { en: 'New Energy', es: 'Nueva Energía', pt: 'Nova Energia', fr: 'Nouvelles Énergies' },
+    '生物医药': { en: 'Biotech', es: 'Biotecnología', pt: 'Biotecnologia', fr: 'Biotech' },
+    '企业服务': { en: 'Enterprise SaaS', es: 'SaaS Empresarial', pt: 'SaaS Empresarial', fr: 'SaaS Entreprise' },
+    '先进制造': { en: 'Advanced Manufacturing', es: 'Manufactura Avanzada', pt: 'Manufatura Avançada', fr: 'Fabrication Avancée' },
+    '消费零售': { en: 'Consumer & Retail', es: 'Consumo y Retail', pt: 'Consumo e Varejo', fr: 'Consommation et Retail' },
+    '北京': { en: 'Beijing', es: 'Pekín', pt: 'Pequim', fr: 'Pékin' },
+    '上海': { en: 'Shanghai', es: 'Shanghái', pt: 'Xangai', fr: 'Shanghai' },
+    '深圳': { en: 'Shenzhen', es: 'Shenzhen', pt: 'Shenzhen', fr: 'Shenzhen' },
+    '杭州': { en: 'Hangzhou', es: 'Hangzhou', pt: 'Hangzhou', fr: 'Hangzhou' },
+    '苏州': { en: 'Suzhou', es: 'Suzhou', pt: 'Suzhou', fr: 'Suzhou' },
+    '合肥': { en: 'Hefei', es: 'Hefei', pt: 'Hefei', fr: 'Hefei' },
+    '广州': { en: 'Guangzhou', es: 'Cantón', pt: 'Cantão', fr: 'Canton' },
+    '成都': { en: 'Chengdu', es: 'Chengdu', pt: 'Chengdu', fr: 'Chengdu' },
+    '香港': { en: 'Hong Kong', es: 'Hong Kong', pt: 'Hong Kong', fr: 'Hong Kong' },
+    '南京': { en: 'Nanjing', es: 'Nankín', pt: 'Nanquim', fr: 'Nankin' },
+    '重庆': { en: 'Chongqing', es: 'Chongqing', pt: 'Chongqing', fr: 'Chongqing' },
+    '衢州': { en: 'Quzhou', es: 'Quzhou', pt: 'Quzhou', fr: 'Quzhou' },
+    '徐州': { en: 'Xuzhou', es: 'Xuzhou', pt: 'Xuzhou', fr: 'Xuzhou' },
+    '长沙': { en: 'Changsha', es: 'Changsha', pt: 'Changsha', fr: 'Changsha' },
+    '郑州': { en: 'Zhengzhou', es: 'Zhengzhou', pt: 'Zhengzhou', fr: 'Zhengzhou' },
+    '天津': { en: 'Tianjin', es: 'Tianjin', pt: 'Tianjin', fr: 'Tianjin' },
+    '武汉': { en: 'Wuhan', es: 'Wuhan', pt: 'Wuhan', fr: 'Wuhan' },
+    '常州': { en: 'Changzhou', es: 'Changzhou', pt: 'Changzhou', fr: 'Changzhou' },
+    '西安': { en: 'Xi\'an', es: 'Xi\'an', pt: 'Xi\'an', fr: 'Xi\'an' },
+    '新加坡': { en: 'Singapore', es: 'Singapur', pt: 'Singapura', fr: 'Singapour' }
+  };
+  var P5 = {
+    '高瓴创投': { en: 'Hillhouse Ventures' },
+    '红杉中国': { en: 'HongShan (Sequoia China)' },
+    'IDG资本': { en: 'IDG Capital' },
+    '经纬创投': { en: 'Matrix Partners China' },
+    '源码资本': { en: 'Source Code Capital' },
+    '启明创投': { en: 'Qiming Venture Partners' },
+    '真格基金': { en: 'ZhenFund' },
+    '奇绩创坛': { en: 'MiraclePlus' },
+    '蓝驰创投': { en: 'Lanchi Ventures' },
+    '红点中国': { en: 'Redpoint China Ventures' },
+    '线性资本': { en: 'Linear Venture' },
+    '云启资本': { en: 'Yunqi Partners' },
+    '联想创投': { en: 'Lenovo Capital' },
+    '腾讯投资': { en: 'Tencent Investment' },
+    '阿里巴巴战投': { en: 'Alibaba Investment' },
+    '小米战投': { en: 'Xiaomi Investment' },
+    '比亚迪投资': { en: 'BYD Capital' },
+    '中金资本': { en: 'CICC Capital' },
+    '国投创合': { en: 'Guotou Chuanghe' },
+    '上海科创基金': { en: 'Shanghai STIC Fund' },
+    '合肥产投': { en: 'Hefei Industry Investment' },
+    '深创投': { en: 'Shenzhen Capital Group' },
+    '元禾原点': { en: 'Oriza Seed' },
+    '同创伟业': { en: 'Tongchuang Weiye' },
+    '高榕创投': { en: 'Gaorong Capital' },
+    '软银愿景': { en: 'SoftBank Vision Fund' },
+    '淡马锡': { en: 'Temasek' },
+    '老虎环球': { en: 'Tiger Global' },
+    '梅花创投': { en: 'Plum Ventures' },
+    '君联资本': { en: 'Legend Capital' },
+    '华映资本': { en: 'China Growth Capital' },
+    '险峰长青': { en: 'K2VC' },
+    '金沙江创投': { en: 'GSR Ventures' },
+    '北极光创投': { en: 'Northern Light VC' },
+    '创新工场': { en: 'Sinovation Ventures' },
+    '高成资本': { en: 'Gaocheng Capital' },
+    '光速中国': { en: 'Lightspeed China' },
+    '顺为资本': { en: 'Shunwei Capital' },
+    '五源资本': { en: '5Y Capital' },
+    '纪源资本': { en: 'GGV Capital' },
+    '愉悦资本': { en: 'Joy Capital' },
+    '中科创星': { en: 'CAS Star' },
+    '英诺天使': { en: 'Inno Angel' },
+    '峰瑞资本': { en: 'FreeS Fund' },
+    '黑蚁资本': { en: 'BlackAnt Capital' },
+    '挑战者创投': { en: 'Challenger Ventures' },
+    '东方富海': { en: 'Oriental Fortune Capital' },
+    '达晨财智': { en: 'Fortune Capital' }
+  };
+  var P6 = {
+    '智谱AI': { en: 'Zhipu AI' },
+    '月之暗面': { en: 'Moonshot AI' },
+    'MiniMax': { en: 'MiniMax' },
+    '百川智能': { en: 'Baichuan AI' },
+    '零一万物': { en: '01.AI' },
+    '阶跃星辰': { en: 'StepFun' },
+    '无问芯穹': { en: 'Infinigence AI' },
+    '潞晨科技': { en: 'Luchen Tech' },
+    '宇树科技': { en: 'Unitree Robotics' },
+    '智元机器人': { en: 'AgiBot' },
+    '银河通用': { en: 'Galaxy General Robotics' },
+    '星动纪元': { en: 'Star Nova' },
+    '逐际动力': { en: 'LimX Dynamics' },
+    '帕西尼感知': { en: 'PACINN' },
+    '云深处科技': { en: 'Cloudwood Dynamics' },
+    '自变量机器人': { en: 'Autozi Robotics' },
+    '壁仞科技': { en: 'Biren Technology' },
+    '沐曦集成电路': { en: 'Muxi Integrated Circuit' },
+    '摩尔线程': { en: 'Moore Threads' },
+    '燧原科技': { en: 'Enflame Technology' },
+    '芯驰科技': { en: 'SiEngine Technology' },
+    '天数智芯': { en: 'Tianshu Zhixin' },
+    '瀚博半导体': { en: 'Hanbo Semiconductor' },
+    '太蓝新能源': { en: 'Tailan New Energy' },
+    '卫蓝新能源': { en: 'Weilan New Energy' },
+    '融和元储': { en: 'Ronghe Energy Storage' },
+    '一道新能': { en: 'Yidao New Energy' },
+    '中润光能': { en: 'Zhongrun Solar' },
+    '信诺维': { en: 'Sinovant' },
+    '宜明昂科': { en: 'Immune-Onc' },
+    '映恩生物': { en: 'Duality Biologics' },
+    '先声再明': { en: 'Simcere Zaiming' },
+    '普方生物': { en: 'ProfoundBio' },
+    '神策数据': { en: 'Sensors Data' },
+    '明略科技': { en: 'MiningLamp' },
+    '澜码科技': { en: 'Lanma Tech' },
+    '实在智能': { en: 'Shizai Intelligence' },
+    '分贝通': { en: 'Fenbeitong' },
+    '思坦科技': { en: 'Sitan Micro-LED' },
+    '华卓精科': { en: 'Huazhuo Precision' },
+    '灵明光子': { en: 'Lingming Photonics' },
+    '阿童木机器人': { en: 'Atum Robotics' },
+    '霸王茶姬': { en: 'Chagee' },
+    '库迪咖啡': { en: 'Cotti Coffee' },
+    '零食很忙': { en: 'Snack Work' },
+    '蜜雪冰城': { en: 'Mixue Bingcheng' },
+    '生数科技': { en: 'ShengShu Technology' },
+    '面壁智能': { en: 'ModelBest' },
+    '深言科技': { en: 'DeepLang AI' },
+    '硅基流动': { en: 'SiliconFlow' },
+    '傅利叶智能': { en: 'Fourier Intelligence' },
+    '追觅科技': { en: 'Dreame Technology' },
+    '乐聚机器人': { en: 'Leju Robotics' },
+    '优必选': { en: 'UBTech' },
+    '黑芝麻智能': { en: 'Black Sesame Technologies' },
+    '芯擎科技': { en: 'SiEngine' },
+    '芯华章': { en: 'X-EPIC' },
+    '蜂巢能源': { en: 'SVOLT' },
+    '远景动力': { en: 'AESC' },
+    '康诺亚': { en: 'KeyMed Biosciences' },
+    '加科思': { en: 'JACOBIO' },
+    '销售易': { en: 'Neocrm' },
+    '纷享销客': { en: 'Fxiaoke' },
+    '越疆科技': { en: 'DOBOT' },
+    '茶百道': { en: 'ChaPanda' },
+    '喜茶': { en: 'HEYTEA' }
+  };
+  var P7 = {
+    '国产大模型头部厂商，政务与金融场景规模化落地': { en: 'Leading domestic LLM vendor scaling in government and finance' },
+    'Kimi智能助手背后的模型公司': { en: 'The AI company behind the Kimi assistant' },
+    '多模态大模型与AI陪伴产品公司': { en: 'Multimodal LLM and AI companion products' },
+    '通用与医疗大模型创业公司': { en: 'General-purpose and healthcare LLM startup' },
+    '李开复创立的AI大模型公司': { en: 'AI LLM company founded by Kai-Fu Lee' },
+    '多模态与Agent方向的大模型公司': { en: 'Multimodal and agent-focused LLM company' },
+    'AI算力基础设施公司': { en: 'AI compute infrastructure company' },
+    '大模型训练推理系统公司': { en: 'LLM training and inference systems' },
+    '四足与人形机器人整机公司': { en: 'Quadruped and humanoid robot maker' },
+    '稚晖君创立的通用机器人公司': { en: 'General-purpose robotics company founded by Zhi Hui Jun' },
+    '通用具身智能机器人公司': { en: 'General embodied intelligence robotics company' },
+    '清华系人形机器人公司': { en: 'Tsinghua-affiliated humanoid robot company' },
+    '足式与通用机器人公司': { en: 'Legged and general-purpose robotics' },
+    '多维触觉传感与人形机器人公司': { en: 'Multidimensional tactile sensing and humanoid robots' },
+    '四足机器人整机与行业方案公司': { en: 'Quadruped robots and industry solutions' },
+    '具身智能通用模型公司': { en: 'General model company for embodied AI' },
+    '国产高性能GPU与AI算力公司': { en: 'Domestic high-performance GPU and AI compute' },
+    '全栈GPU芯片设计公司': { en: 'Full-stack GPU chip designer' },
+    '国产全功能GPU公司': { en: 'Domestic full-featured GPU company' },
+    '云端AI训练与推理芯片公司': { en: 'Cloud AI training and inference chips' },
+    '智能汽车座舱与网关芯片公司': { en: 'Automotive cockpit and gateway chips' },
+    '通用GPU云端训练芯片公司': { en: 'General-purpose GPGPU for cloud training' },
+    'AI视觉与视频处理芯片公司': { en: 'AI vision and video processing chips' },
+    '半固态与全固态电池公司': { en: 'Semi-solid and solid-state battery company' },
+    '固态电池技术公司': { en: 'Solid-state battery technology company' },
+    '工商业储能系统公司': { en: 'Commercial and industrial energy storage' },
+    '高效光伏组件制造公司': { en: 'High-efficiency PV module manufacturer' },
+    '光伏电池片生产商': { en: 'PV solar cell producer' },
+    '肿瘤与自身免疫创新药公司': { en: 'Oncology and autoimmune innovative drugs' },
+    '肿瘤免疫双抗药物公司': { en: 'Tumor immunology bispecific antibody drugs' },
+    'ADC药物研发公司': { en: 'ADC drug developer' },
+    '先声药业创新药平台': { en: 'Simcere innovative drug platform' },
+    'ADC新药研发公司': { en: 'ADC novel drug R&D company' },
+    '客户数据与分析平台': { en: 'Customer data and analytics platform' },
+    '企业级AI与知识图谱服务商': { en: 'Enterprise AI and knowledge graph services' },
+    '大模型驱动的流程自动化公司': { en: 'LLM-driven process automation' },
+    '智能体与RPA产品公司': { en: 'AI agents and RPA products' },
+    '企业费用管理SaaS平台': { en: 'Enterprise expense management SaaS' },
+    'Micro-LED显示技术公司': { en: 'Micro-LED display technology company' },
+    '半导体光刻机核心部件公司': { en: 'Core components for semiconductor lithography' },
+    '单光子探测器芯片公司': { en: 'SPAD single-photon detector chips' },
+    '高速并联工业机器人公司': { en: 'High-speed parallel industrial robots' },
+    '原叶鲜奶茶连锁品牌': { en: 'Fresh-milk tea chain brand' },
+    '平价咖啡连锁品牌': { en: 'Affordable coffee chain' },
+    '量贩零食连锁品牌': { en: 'Discounted snack chain' },
+    '万店茶饮供应链公司': { en: 'Tea supply chain company with 10k+ stores' }
+  };
+  var P8 = {
+    '多模态视频生成模型公司': { en: 'Multimodal video generation models' },
+    '端侧大模型公司': { en: 'On-device LLM company' },
+    'AI写作与文本生成公司': { en: 'AI writing and text generation' },
+    'AI推理与模型服务基础设施': { en: 'AI inference and model serving infrastructure' },
+    '康复与人形机器人公司': { en: 'Rehabilitation and humanoid robotics' },
+    '智能清洁与家庭服务机器人公司': { en: 'Smart cleaning and home robots' },
+    '人形机器人整机公司': { en: 'Humanoid robot maker' },
+    '人形机器人与智能服务机器人公司': { en: 'Humanoid and intelligent service robots' },
+    '车规级自动驾驶芯片公司': { en: 'Automotive-grade autonomous driving chips' },
+    '智能座舱与自动驾驶SoC公司': { en: 'Cockpit and ADAS SoC company' },
+    '数字验证EDA工具公司': { en: 'Digital verification EDA tools' },
+    '动力电池与储能电芯公司': { en: 'Power battery and storage cells' },
+    '动力电池研发与制造公司': { en: 'EV battery R&D and manufacturing' },
+    '肿瘤免疫创新药公司': { en: 'Tumor immunology innovative drugs' },
+    '小分子创新药公司': { en: 'Small-molecule innovative drugs' },
+    '企业级CRM平台': { en: 'Enterprise CRM platform' },
+    '协同与连接型CRM SaaS': { en: 'Collaborative CRM SaaS' },
+    '协作机器人公司': { en: 'Collaborative robot company' },
+    '新茶饮连锁品牌': { en: 'New-style tea chain' },
+    '现制茶饮连锁品牌': { en: 'Freshly made tea chain' },
+    '聚焦科技、医疗与消费的长期成长投资': { en: 'Long-term growth investing across tech, healthcare and consumer' },
+    '全周期投资，覆盖种子到成长期': { en: 'Full-cycle investing from seed to growth' },
+    '科技与早期创业生态的长期建设者': { en: 'Long-term builder of the tech and startup ecosystem' },
+    '聚焦互联网、科技与企业服务的早期基金': { en: 'Early-stage fund focused on internet, tech and enterprise software' },
+    '专注数据智能与硬科技的成长基金': { en: 'Growth fund focused on data intelligence and hard tech' },
+    '深耕信息技术与健康医疗的双币基金': { en: 'Dual-currency fund in IT and healthcare' },
+    '专注早期创业投资的天使基金': { en: 'Early-stage angel fund' },
+    '专注早期硬科技创业与加速': { en: 'Early hard-tech acceleration and investing' },
+    '关注前沿科技与机器人产业': { en: 'Frontier tech and robotics investor' },
+    '技术驱动型投资，覆盖半导体与智能硬件': { en: 'Tech-driven investing in semiconductors and hardware' },
+    '聚焦数据智能与软件创新': { en: 'Data intelligence and software innovation' },
+    '投资先进制造与智能技术': { en: 'Advanced manufacturing and smart technology' },
+    '联想集团的科技产业基金': { en: 'Lenovo Group technology fund' },
+    '腾讯生态战略投资': { en: 'Tencent ecosystem strategic investment' },
+    '阿里生态与消费科技投资': { en: 'Alibaba ecosystem and consumer tech investment' },
+    '小米生态链与硬科技投资': { en: 'Xiaomi ecosystem and hard tech investment' },
+    '新能源与智能制造的产业资本': { en: 'New energy and smart manufacturing CVC' },
+    '全资产类别私募股权投资平台': { en: 'All-asset private equity platform' },
+    '国家级产业投资基金': { en: 'National industrial investment fund' },
+    '上海科创中心建设股权投资基金': { en: 'Shanghai Science & Technology Innovation Fund' },
+    '合肥战新产业投资平台': { en: 'Hefei strategic emerging industry platform' },
+    '综合性创业投资集团': { en: 'Comprehensive venture capital group' },
+    '苏州本地早期科技基金': { en: 'Suzhou early-stage tech fund' },
+    '成长期股权投资机构': { en: 'Growth-stage equity investor' },
+    '专注新经济与科技的VC基金': { en: 'New economy and tech VC fund' },
+    '全球科技成长基金': { en: 'Global technology growth fund' },
+    '新加坡主权财富基金': { en: 'Singapore sovereign wealth fund' },
+    '全球科技与消费成长基金': { en: 'Global tech and consumer growth fund' },
+    '早期科技与消费投资': { en: 'Early-stage tech and consumer investing' },
+    '科创与医疗健康投资': { en: 'Tech and healthcare investing' },
+    '早期与成长期风险投资': { en: 'Early and growth venture capital' },
+    '消费与科技早期投资': { en: 'Consumer and tech early investing' },
+    'AI与硬科技早期投资': { en: 'AI and hard tech early investing' },
+    '深科技与半导体投资': { en: 'Deep tech and semiconductor investing' },
+    '人工智能与企业服务投资': { en: 'AI and enterprise software investing' },
+    '科技消费与机器人投资': { en: 'Tech, consumer and robotics investing' },
+    '科技与消费成长基金': { en: 'Tech and consumer growth fund' },
+    'AI与互联网早期基金': { en: 'AI and internet early fund' },
+    '前沿科技产业化投资': { en: 'Frontier tech industrialization' },
+    '硬科技早期孵化与投资': { en: 'Hard tech early incubation and investing' },
+    '科技与医疗早期投资': { en: 'Tech and healthcare early investing' },
+    '消费品牌成长投资': { en: 'Consumer brand growth investing' },
+    '新消费与互联网投资': { en: 'New consumer and internet investing' },
+    '先进制造与新能源投资': { en: 'Advanced manufacturing and new energy' },
+    '智能制造与科技投资': { en: 'Smart manufacturing and tech investing' }
+  };
+  var P9 = {
+    '大模型商业化提速，政务与金融场景规模化落地': { en: 'LLM commercialization accelerating in government and finance' },
+    'C端产品增长强劲，推理成本持续下降': { en: 'Strong consumer growth; inference costs falling' },
+    '多模态模型与AI陪伴产品进入商业化阶段': { en: 'Multimodal models and AI companion products entering monetization' },
+    '医疗大模型通过多项临床场景验证': { en: 'Healthcare LLM validated across clinical scenarios' },
+    '企业级Agent产品矩阵扩展': { en: 'Enterprise agent product matrix expanding' },
+    'Agent方向产品上线并进入政企客户验证': { en: 'Agent products launched and in government/enterprise pilots' },
+    'AI算力调度平台接入多家云厂商': { en: 'AI compute orchestration platform onboarded by cloud vendors' },
+    '分布式训练系统服务头部模型厂商': { en: 'Distributed training systems serving top model labs' },
+    '大模型行业应用收入环比增长': { en: 'LLM industry revenue up quarter over quarter' },
+    'Kimi月活用户快速增长': { en: 'Kimi MAU growing rapidly' },
+    '多模态模型版本更新': { en: 'Multimodal model update' },
+    '大模型基础能力建设': { en: 'Core LLM capability buildout' },
+    '医疗大模型产品发布': { en: 'Healthcare LLM product launch' },
+    'Step系列模型发布': { en: 'Step model family launch' },
+    '人形机器人量产交付超千台': { en: 'Humanoid robot mass delivery exceeds 1,000 units' },
+    '通用人形机器人与车企场景合作': { en: 'General humanoid robots entering automaker scenarios' },
+    '大模型驱动机器人大规模场景落地': { en: 'LLM-driven robots deploying at scale' },
+    '新一代人形机器人原型发布': { en: 'Next-gen humanoid robot prototype unveiled' },
+    '足式机器人进入工业巡检市场': { en: 'Legged robots entering industrial inspection' },
+    '触觉传感方案导入机器人客户': { en: 'Tactile sensing adopted by robot customers' },
+    '四足机器人巡检订单增长': { en: 'Quadruped inspection orders growing' },
+    '机器人通用模型在工厂场景验证': { en: 'General robot model validated in factories' },
+    '四足机器人海外市场放量': { en: 'Quadruped robots scaling overseas' },
+    '工厂与商用场景合作': { en: 'Factory and commercial partnerships' },
+    '通用机器人demo落地': { en: 'General robot demo deployment' },
+    '足式机器人平台完成多场景测试': { en: 'Legged platform completes multi-scenario tests' },
+    '国产GPU进入互联网大厂规模采购': { en: 'Domestic GPUs enter large internet company procurement' },
+    '全栈GPU产品线扩展': { en: 'Full-stack GPU product line expansion' },
+    '国产全功能GPU生态适配加速': { en: 'Domestic full-featured GPU ecosystem adaptation accelerating' },
+    '云端AI训练芯片规模化部署': { en: 'Cloud AI training chips deploying at scale' },
+    '车规芯片量产装车': { en: 'Automotive chips entering mass production' },
+    'GPGPU产品进入智算中心': { en: 'GPGPU products entering AI compute centers' },
+    '视频AI芯片出货增长': { en: 'Video AI chip shipments growing' },
+    '新一代GPU流片': { en: 'Next-gen GPU tape-out' },
+    'GPU产品进入服务器OEM': { en: 'GPU products entering server OEMs' },
+    '全功能GPU迭代发布': { en: 'Full-featured GPU iteration launch' },
+    '训练芯片进入头部算力中心': { en: 'Training chips entering leading compute centers' }
+  };
+  var P10 = {
+    '半固态电池装车验证，产线扩产': { en: 'Semi-solid battery vehicle validation and capacity expansion' },
+    '固态电池中试线投产': { en: 'Solid-state battery pilot line online' },
+    '工商业储能订单快速增长': { en: 'C&I storage orders growing fast' },
+    'N型组件产能扩张与出海': { en: 'N-type module capacity expansion and exports' },
+    '光伏电池片出货量提升': { en: 'PV cell shipments rising' },
+    '固态电池技术验证完成': { en: 'Solid-state battery technology validated' },
+    '储能电芯进入示范项目': { en: 'Storage cells entering demonstration projects' },
+    '组件出海订单放量': { en: 'Module export orders ramping' },
+    'ADC新药进入关键临床阶段': { en: 'ADC drug entering pivotal clinical stage' },
+    '双抗管线临床数据读出': { en: 'Bispecific pipeline clinical data readout' },
+    'ADC管线推进至临床III期': { en: 'ADC pipeline advancing to Phase III' },
+    '肿瘤创新药商业化准备': { en: 'Oncology drug commercialization preparation' },
+    'ADC药物海外授权交易达成': { en: 'ADC out-licensing deal closed' },
+    '早期管线推进': { en: 'Early pipeline advancement' },
+    'ADC平台迭代': { en: 'ADC platform iteration' },
+    '数据底座与AI分析产品整合': { en: 'Data platform and AI analytics integration' },
+    '知识图谱大模型商业化': { en: 'Knowledge graph LLM commercialization' },
+    'Agent自动化平台上线': { en: 'Agent automation platform launch' },
+    '智能体产品进入金融客服场景': { en: 'Agent products entering finance customer service' },
+    '费控SaaS实现盈利': { en: 'Expense SaaS reaching profitability' },
+    '营销科技产品线扩展': { en: 'Marketing tech product expansion' },
+    '行业大模型落地': { en: 'Industry LLM deployments' },
+    'Micro-LED微显示产线良率提升': { en: 'Micro-LED display yield improving' },
+    '光刻机核心部件进入验证阶段': { en: 'Lithography core components in validation' },
+    'SPAD芯片导入车载激光雷达': { en: 'SPAD chips entering automotive LiDAR' },
+    '并联机器人出口订单增长': { en: 'Parallel robot export orders growing' },
+    '精密部件批量交付': { en: 'Precision components in volume delivery' },
+    '全球化门店扩张，海外收入占比提升': { en: 'Global store expansion; overseas revenue share rising' },
+    '万店规模与供应链效率提升': { en: '10k-store scale with improving supply chain' },
+    '量贩零食门店网络扩张': { en: 'Discounted snack store network expanding' },
+    '供应链体系升级与出海布局': { en: 'Supply chain upgrade and overseas expansion' },
+    '新茶饮品牌全球化提速': { en: 'Tea brand globalization accelerating' },
+    '咖啡门店快速扩张': { en: 'Coffee store expansion accelerating' },
+    '供应链与门店模型验证': { en: 'Supply chain and store model validated' },
+    '端侧大模型能力升级': { en: 'On-device LLM capability upgrade' },
+    '视频生成模型发布': { en: 'Video generation model launch' },
+    'AI推理平台商业化': { en: 'AI inference platform commercialization' },
+    '人形机器人进入医疗场景': { en: 'Humanoid robots entering healthcare' },
+    '家庭服务机器人出海': { en: 'Home robots expanding overseas' },
+    '人形机器人量产合作': { en: 'Humanoid robot production partnership' },
+    '自动驾驶芯片定点量产': { en: 'ADAS chip design-win and mass production' },
+    '智能座舱SoC量产': { en: 'Cockpit SoC mass production' },
+    'EDA工具通过头部客户验证': { en: 'EDA tools validated by top customers' },
+    '动力电池产能扩张': { en: 'EV battery capacity expansion' },
+    '储能与海外市场布局': { en: 'Storage and overseas market expansion' },
+    '创新药管线推进': { en: 'Innovative drug pipeline advancement' },
+    '小分子药物临床推进': { en: 'Small-molecule drug clinical progress' },
+    'CRM平台大客户扩张': { en: 'CRM enterprise account expansion' },
+    '协同CRM SaaS增长': { en: 'Collaborative CRM SaaS growth' },
+    '协作机器人出海': { en: 'Collaborative robots expanding overseas' },
+    '新茶饮供应链升级': { en: 'Tea supply chain upgrade' },
+    '茶饮门店网络扩张': { en: 'Tea store network expansion' }
+  };
+  var P11 = {
+    '红杉中国近30天连投4家AI与具身智能头部公司': { en: 'HongShan made 4 investments in leading AI and embodied AI companies in 30 days' },
+    '智谱AI、宇树科技、阶跃星辰、自变量机器人先后交割，单笔最高28亿元': { en: 'Closed Zhipu AI, Unitree, StepFun and Autozi; largest deal RMB 2.8B' },
+    '具身智能赛道近30天融资总额环比增长68%': { en: 'Embodied AI funding up 68% MoM in last 30 days' },
+    '本期约59.5亿元，上期约35.4亿元，量产订单与场景落地驱动': { en: 'RMB 5.95B vs 3.54B prior; driven by production orders and deployments' },
+    '国产GPU进入D轮密集交割期': { en: 'Domestic GPU Series D wave underway' },
+    '壁仞科技、沐曦、摩尔线程一个月内连续完成D轮，合计107亿元': { en: 'Biren, Muxi and Moore Threads closed Series D within a month, RMB 10.7B total' },
+    '高瓴创投月度出手频率升至近12个月最高': { en: 'Hillhouse deal frequency hits 12-month high' },
+    '近30天参与9笔交易，覆盖AI、机器人、新能源与消费': { en: '9 deals in 30 days across AI, robotics, energy and consumer' },
+    '北向资金连续3个月净流入超700亿元': { en: 'Northbound flows above RMB 70B for 3 consecutive months' },
+    '5-7月累计净流入约2270亿元，外资风险偏好回升': { en: 'Roughly RMB 227B net inflow May-July; foreign risk appetite recovering' },
+    '霸王茶姬Pre-IPO交割50亿元，消费赛道回暖': { en: 'Chagee closed RMB 5B Pre-IPO; consumer sector warming' },
+    '海外门店占比提升，头部品牌进入上市前融资窗口': { en: 'Overseas store share rising; top brands entering Pre-IPO windows' },
+    '政府引导基金在硬科技交易中参与度升至42%': { en: 'Government funds now participate in 42% of hard-tech deals' },
+    '芯片、机器人、新能源等领域多笔大额交易由引导基金领投': { en: 'Guided funds lead large deals in chips, robotics and energy' },
+    '海外基金对华投资占比连续两个季度回升': { en: 'Overseas funds raising China allocation for two straight quarters' },
+    '淡马锡、软银愿景等参与固态电池与AI芯片项目': { en: 'Temasek and SoftBank Vision joined solid-state battery and AI chip rounds' },
+    'AI应用层估值中枢上移，部分A轮项目估值同比翻倍': { en: 'AI application valuations rising; some Series A valuations doubled YoY' },
+    'Agent类公司A轮估值区间上移至20-40亿元': { en: 'Agent startups Series A valuations now RMB 2-4B' },
+    '生物医药License-out交易回暖': { en: 'Biotech license-out deals recovering' },
+    'ADC管线海外授权活跃，创新药融资进入旺季': { en: 'Active ADC out-licensing; innovative drug funding entering peak season' },
+    '头部机构密集出手': { en: 'Top investors cluster' },
+    '任一机构近30天出手不少于3笔': { en: 'Any investor closes 3+ deals in 30 days' },
+    '赛道动量突增': { en: 'Sector momentum spike' },
+    '任一赛道近30天融资额环比增长不低于50%': { en: 'Sector funding grows 50%+ MoM' },
+    '轮次上移': { en: 'Round escalation' },
+    '头部公司进入D轮及以上交割': { en: 'Top companies enter Series D+ rounds' },
+    '北向资金趋势': { en: 'Northbound flow trend' },
+    '北向资金连续3个月净流入超700亿元': { en: 'Northbound net inflow above RMB 70B for 3 months' },
+    '估值异动': { en: 'Valuation anomaly' },
+    'A轮估值中位数环比变化超过100%': { en: 'Series A median valuation swings over 100%' },
+    '跨境资本回流': { en: 'Cross-border capital return' },
+    '海外基金参与交易占比连续两季度回升': { en: 'Overseas fund participation up for two quarters' },
+    '引导基金参与度': { en: 'Government fund participation' },
+    '政府引导基金参与大额交易占比超过40%': { en: 'Government funds take part in 40%+ of large deals' },
+    '行业融资集中度': { en: 'Sector concentration' },
+    '单赛道融资占比超过全市场35%': { en: 'Single sector exceeds 35% of total funding' }
+  };
+  var P12 = {
+    '募资端': { en: 'Fundraising', es: 'Captación de fondos', pt: 'Captação de fundos', fr: 'Levées de fonds' },
+    '退出端': { en: 'Exits', es: 'Salidas', pt: 'Saídas', fr: 'Sorties' },
+    '币种结构': { en: 'Currency mix', es: 'Composición por moneda', pt: 'Composição por moeda', fr: 'Mix de devises' },
+    '估值阶梯': { en: 'Valuation ladder', es: 'Escalera de valoración', pt: 'Escada de avaliação', fr: 'Échelle de valorisation' },
+    '区域间资金流动': { en: 'Inter-regional flows', es: 'Flujos interregionales', pt: 'Fluxos inter-regionais', fr: 'Flux interrégionaux' },
+    '季度募资规模': { en: 'Quarterly fundraising', es: 'Captación trimestral', pt: 'Captação trimestral', fr: 'Levées trimestrielles' },
+    '季度退出事件': { en: 'Quarterly exits', es: 'Salidas trimestrales', pt: 'Saídas trimestrais', fr: 'Sorties trimestrielles' },
+    'IPO': { en: 'IPO', es: 'OPI', pt: 'IPO', fr: 'IPO' },
+    '并购': { en: 'M&A', es: 'M&A', pt: 'M&A', fr: 'M&A' },
+    '估值中位数': { en: 'Median valuation', es: 'Valoración mediana', pt: 'Avaliação mediana', fr: 'Valorisation médiane' },
+    '人民币': { en: 'CNY', es: 'CNY', pt: 'CNY', fr: 'CNY' },
+    '美元': { en: 'USD', es: 'USD', pt: 'USD', fr: 'USD' },
+    '新基金募资': { en: 'New fund closes', es: 'Nuevos fondos', pt: 'Novos fundos', fr: 'Nouveaux fonds' },
+    '退出活跃度': { en: 'Exit activity', es: 'Actividad de salidas', pt: 'Atividade de saídas', fr: 'Activité de sorties' },
+    '北向资金': { en: 'Northbound flows', es: 'Flujos del norte', pt: 'Fluxos norte', fr: 'Flux northbound' },
+    '外资流入中国一级市场': { en: 'Foreign capital into China primary market', es: 'Capital extranjero al mercado primario', pt: 'Capital estrangeiro no mercado primário', fr: 'Capital étranger vers le marché primaire' },
+    '中国资本出海': { en: 'China capital outbound', es: 'Capital chino al exterior', pt: 'Capital chinês no exterior', fr: 'Capital chinois à l\'étranger' },
+    '种子': { en: 'Seed', es: 'Semilla', pt: 'Semente', fr: 'Amorçage' },
+    '天使': { en: 'Angel', es: 'Ángel', pt: 'Anjo', fr: 'Angel' },
+    'A轮': { en: 'Series A', es: 'Serie A', pt: 'Série A', fr: 'Série A' },
+    'A+轮': { en: 'Series A+', es: 'Serie A+', pt: 'Série A+', fr: 'Série A+' },
+    'B轮': { en: 'Series B', es: 'Serie B', pt: 'Série B', fr: 'Série B' },
+    'B+轮': { en: 'Series B+', es: 'Serie B+', pt: 'Série B+', fr: 'Série B+' },
+    'C轮': { en: 'Series C', es: 'Serie C', pt: 'Série C', fr: 'Série C' },
+    'C+轮': { en: 'Series C+', es: 'Serie C+', pt: 'Série C+', fr: 'Série C+' },
+    'D轮': { en: 'Series D', es: 'Serie D', pt: 'Série D', fr: 'Série D' },
+    'Pre-IPO': { en: 'Pre-IPO', es: 'Pre-OPI', pt: 'Pré-IPO', fr: 'Pré-IPO' },
+    '战略轮': { en: 'Strategic', es: 'Estratégica', pt: 'Estratégica', fr: 'Stratégique' },
+    '资本流径 · VC资金流向情报平台': { en: 'Capital Flow · VC Capital Flow Intelligence Platform', es: 'Flujo de Capital · Plataforma de Inteligencia de Flujos VC', pt: 'Fluxo de Capital · Plataforma de Inteligência de Fluxos VC', fr: "Flux de Capitaux · Plateforme d'Intelligence des Flux VC" },
+    '募资 · 退出 · 估值 · 币种 · 区域流动': { en: 'Fundraising · Exits · Valuation · Currency · Regional flows', es: 'Captación · Salidas · Valoración · Moneda · Flujos regionales', pt: 'Captação · Saídas · Avaliação · Moeda · Fluxos regionais', fr: 'Levées · Sorties · Valorisation · Devises · Flux régionaux' },
+    '新基金募资': { en: 'New fund closes', es: 'Nuevos fondos', pt: 'Novos fundos', fr: 'Nouveaux fonds' },
+    '退出事件': { en: 'Exit events', es: 'Salidas', pt: 'Saídas', fr: 'Sorties' },
+    '美元占比': { en: 'USD share', es: 'Cuota USD', pt: 'Participação USD', fr: 'Part USD' },
+    '最新季度 · 环比 +8.9%': { en: 'Latest quarter · +8.9% QoQ', es: 'Último trimestre · +8,9%', pt: 'Último trimestre · +8,9%', fr: 'Dernier trimestre · +8,9%' },
+    'IPO ': { en: 'IPO ', es: 'OPI ', pt: 'IPO ', fr: 'IPO ' },
+    ' · 并购 ': { en: ' · M&A ', es: ' · M&A ', pt: ' · M&A ', fr: ' · M&A ' },
+    '起': { en: '', es: '', pt: '', fr: '' },
+    'C轮 · 近12个月': { en: 'Series C · Last 12m', es: 'Serie C · 12 meses', pt: 'Série C · 12 meses', fr: 'Série C · 12 mois' },
+    '近12个月 · 跨境活跃': { en: 'Last 12m · cross-border active', es: '12 meses · transfronterizo', pt: '12 meses · transfronteiriço', fr: '12 mois · transfrontalier' },
+    '季度募资规模': { en: 'Quarterly fundraising volume', es: 'Captación trimestral', pt: 'Captação trimestral', fr: 'Volume des levées trimestrielles' },
+    '新基金募资（亿元）': { en: 'New fund closes (RMB B)', es: 'Nuevos fondos (miles de M)', pt: 'Novos fundos (R$ M)', fr: 'Nouveaux fonds (M)' },
+    '季度退出事件': { en: 'Quarterly exit events', es: 'Salidas trimestrales', pt: 'Saídas trimestrais', fr: 'Sorties trimestrielles' },
+    'IPO · 并购': { en: 'IPO · M&A', es: 'OPI · M&A', pt: 'IPO · M&A', fr: 'IPO · M&A' },
+    '轮次估值中位数': { en: 'Median valuation by round', es: 'Valoración mediana por ronda', pt: 'Avaliação mediana por rodada', fr: 'Valorisation médiane par tour' },
+    '人民币 / 美元': { en: 'CNY / USD', es: 'CNY / USD', pt: 'CNY / USD', fr: 'CNY / USD' },
+    'Top 10 城市间流向（亿元）': { en: 'Top 10 city flows (RMB B)', es: 'Flujos Top 10 entre ciudades', pt: 'Fluxos Top 10 entre cidades', fr: 'Flux Top 10 entre villes' },
+    '跨境出海目的地': { en: 'Outbound destinations', es: 'Destinos de salida', pt: 'Destinos de saída', fr: 'Destinations sortantes' },
+    '中国资本流向占比': { en: 'Share of China outbound capital', es: 'Cuota del capital chino', pt: 'Participação do capital chinês', fr: 'Part du capital chinois' },
+    '近30天 ': { en: 'Last 30d ', es: '30 días ', pt: '30 dias ', fr: '30 j ' },
+    '近90天 ': { en: 'Last 90d ', es: '90 días ', pt: '90 dias ', fr: '90 j ' },
+    '领投 ': { en: 'Lead ', es: 'Líder ', pt: 'Líder ', fr: 'Meneur ' },
+    '跟投': { en: 'Co', es: 'Co', pt: 'Co', fr: 'Co' },
+    '覆盖多个赛道，出手频率高于近12个月均值': { en: 'Multiple sectors; frequency above 12-month average', es: 'Varios sectores; frecuencia superior al promedio', pt: 'Vários setores; frequência acima da média', fr: 'Plusieurs secteurs; fréquence au-dessus de la moyenne' },
+    '季度新基金募资': { en: 'Quarterly new fund closes', es: 'Nuevos fondos trimestrales', pt: 'Novos fundos trimestrais', fr: 'Nouveaux fonds trimestriels' },
+    '季度IPO与并购': { en: 'Quarterly IPO & M&A', es: 'OPI y M&A trimestral', pt: 'IPO e M&A trimestral', fr: 'IPO et M&A trimestriels' },
+    '数据截至 ': { en: 'Data as of ', es: 'Datos al ', pt: 'Dados em ', fr: 'Données au ' },
+    '演示数据 · 非实时行情': { en: 'Demo data · Not live', es: 'Datos demo · No en tiempo real', pt: 'Dados demo · Não em tempo real', fr: 'Données démo · Pas en temps réel' }
   };
 
-  let lang = 'zh';
-  try {
-    const saved = localStorage.getItem(LANG_KEY);
-    if (saved && DICT[saved]) lang = saved;
-  } catch (e) { /* ignore */ }
-
-  function t(key, vars) {
-    let s = (DICT[lang] && DICT[lang][key] != null) ? DICT[lang][key] : (DICT.en && DICT.en[key] != null) ? DICT.en[key] : key;
-    if (Array.isArray(s)) s = s.join(' | ');
-    if (vars) {
-      Object.keys(vars).forEach(k => {
-        s = String(s).split('{' + k + '}').join(String(vars[k]));
+  var P13 = {
+    '笔': { en: ' deals', es: ' operaciones', pt: ' negócios', fr: ' opérations' },
+    ' 笔': { en: ' deals', es: ' operaciones', pt: ' negócios', fr: ' opérations' },
+    '家': { en: ' institutions', es: ' instituciones', pt: ' instituições', fr: ' institutions' },
+    ' 家': { en: ' institutions', es: ' instituciones', pt: ' instituições', fr: ' institutions' },
+    '条': { en: ' deals', es: ' operaciones', pt: ' negócios', fr: ' opérations' },
+    ' 条': { en: ' deals', es: ' operaciones', pt: ' negócios', fr: ' opérations' },
+    '起': { en: ' events', es: ' eventos', pt: ' eventos', fr: ' événements' },
+    ' 起': { en: ' events', es: ' eventos', pt: ' eventos', fr: ' événements' },
+    '人': { en: ' people', es: ' personas', pt: ' pessoas', fr: ' personnes' },
+    ' 人': { en: ' people', es: ' personas', pt: ' pessoas', fr: ' personnes' },
+    '项': { en: ' items', es: ' elementos', pt: ' itens', fr: ' éléments' },
+    ' 项': { en: ' items', es: ' elementos', pt: ' itens', fr: ' éléments' },
+    '年': { en: '', es: '', pt: '', fr: '' },
+    ' 年': { en: '', es: '', pt: '', fr: '' },
+    '笔交易': { en: ' deals', es: ' operaciones', pt: ' negócios', fr: ' opérations' },
+    ' 笔交易': { en: ' deals', es: ' operaciones', pt: ' negócios', fr: ' opérations' },
+    '条交易': { en: ' deals', es: ' operaciones', pt: ' negócios', fr: ' opérations' },
+    ' 条交易': { en: ' deals', es: ' operaciones', pt: ' negócios', fr: ' opérations' },
+    '家机构': { en: ' institutions', es: ' instituciones', pt: ' instituições', fr: ' institutions' },
+    ' 家机构': { en: ' institutions', es: ' instituciones', pt: ' instituições', fr: ' institutions' },
+    '家公司': { en: ' companies', es: ' empresas', pt: ' empresas', fr: ' entreprises' },
+    ' 家公司': { en: ' companies', es: ' empresas', pt: ' empresas', fr: ' entreprises' },
+    '头部VC': { en: 'Top VC', es: 'VC líder', pt: 'VC líder', fr: 'Top VC' },
+    '天使基金': { en: 'Angel fund', es: 'Fondo ángel', pt: 'Fundo anjo', fr: 'Fonds angel' },
+    '美元基金': { en: 'USD fund', es: 'Fondo USD', pt: 'Fundo USD', fr: 'Fonds USD' },
+    '产业资本': { en: 'Corporate capital', es: 'Capital corporativo', pt: 'Capital corporativo', fr: "Capital d'entreprise" },
+    'PE机构': { en: 'PE firm', es: 'Firma PE', pt: 'Firma PE', fr: 'Firme PE' },
+    '政府引导基金': { en: 'Government fund', es: 'Fondo gubernamental', pt: 'Fundo governamental', fr: 'Fonds public' },
+    '海外基金': { en: 'Overseas fund', es: 'Fondo extranjero', pt: 'Fundo estrangeiro', fr: 'Fonds étranger' },
+    'D+轮': { en: 'Series D+', es: 'Serie D+', pt: 'Série D+', fr: 'Série D+' },
+    'E轮': { en: 'Series E', es: 'Serie E', pt: 'Série E', fr: 'Série E' },
+    'F轮': { en: 'Series F', es: 'Serie F', pt: 'Série F', fr: 'Série F' },
+    '美国': { en: 'United States', es: 'Estados Unidos', pt: 'Estados Unidos', fr: 'États-Unis' },
+    '东南亚': { en: 'Southeast Asia', es: 'Sudeste Asiático', pt: 'Sudeste Asiático', fr: 'Asie du Sud-Est' },
+    '中东': { en: 'Middle East', es: 'Oriente Medio', pt: 'Oriente Médio', fr: 'Moyen-Orient' },
+    '欧洲': { en: 'Europe', es: 'Europa', pt: 'Europa', fr: 'Europe' },
+    '拉美': { en: 'Latin America', es: 'Latinoamérica', pt: 'América Latina', fr: 'Amérique latine' },
+    '机构 · 公司 · 赛道 之间的资金网络': { en: 'Capital network across institutions, companies and sectors', es: 'Red de capital entre instituciones, empresas y sectores', pt: 'Rede de capital entre instituições, empresas e setores', fr: 'Réseau de capitaux entre institutions, entreprises et secteurs' },
+    '机构': { en: 'Institution', es: 'Institución', pt: 'Instituição', fr: 'Institution' },
+    '管理': { en: 'AUM ', es: 'AUM ', pt: 'AUM ', fr: 'AUM ' },
+    '估值': { en: 'Valuation', es: 'Valoración', pt: 'Avaliação', fr: 'Valorisation' },
+    '节点': { en: 'Nodes', es: 'Nodos', pt: 'Nós', fr: 'Nœuds' },
+    '资金关系': { en: 'Capital relations', es: 'Relaciones de capital', pt: 'Relações de capital', fr: 'Relations de capitaux' },
+    '交易笔数': { en: 'Deal count', es: 'N.º de operaciones', pt: 'N.º de negócios', fr: "Nombre d'opérations" },
+    '近90天参与 ': { en: 'Participated in ', es: 'Participó en ', pt: 'Participou em ', fr: 'Participé à ' },
+    '单家平均 ': { en: 'Avg per investor ', es: 'Promedio por inversor ', pt: 'Média por investidor ', fr: 'Moyenne par investisseur ' },
+    '平均': { en: 'average', es: 'promedio', pt: 'média', fr: 'moyenne' },
+    '共 ': { en: 'Total ', es: 'Total ', pt: 'Total ', fr: 'Total ' },
+    '第 ': { en: 'Page ', es: 'Página ', pt: 'Página ', fr: 'Page ' },
+    ' 页 · 共 ': { en: ' · Total ', es: ' · Total ', pt: ' · Total ', fr: ' · Total ' },
+    '轮次': { en: 'Round', es: 'Ronda', pt: 'Rodada', fr: 'Tour' },
+    '公司 / 机构 / 备注': { en: 'Company / Institution / Note', es: 'Empresa / Institución / Nota', pt: 'Empresa / Instituição / Nota', fr: 'Entreprise / Institution / Note' },
+    '检测 · 最新扫描 ': { en: ' · Last scan ', es: ' · Último escaneo ', pt: ' · Última análise ', fr: ' · Dernière analyse ' },
+    '数据覆盖 ': { en: 'Data coverage ', es: 'Cobertura de datos ', pt: 'Cobertura de dados ', fr: 'Couverture des données ' },
+    '环比 ': { en: 'MoM ', es: 'MoM ', pt: 'MoM ', fr: 'MoM ' },
+    '增加': { en: 'up', es: 'alza', pt: 'alta', fr: 'hausse' },
+    '减少': { en: 'down', es: 'baja', pt: 'queda', fr: 'baisse' },
+    '增长': { en: 'growth', es: 'crecimiento', pt: 'crescimento', fr: 'croissance' },
+    '下降': { en: 'decline', es: 'caída', pt: 'queda', fr: 'baisse' },
+    '菜单': { en: 'Menu', es: 'Menú', pt: 'Menu', fr: 'Menu' },
+    '全局搜索': { en: 'Global search', es: 'Búsqueda global', pt: 'Busca global', fr: 'Recherche globale' },
+    '刷新': { en: 'Refresh', es: 'Actualizar', pt: 'Atualizar', fr: 'Actualiser' },
+    '通知': { en: 'Notifications', es: 'Notificaciones', pt: 'Notificações', fr: 'Notifications' },
+    '中文': { en: 'Chinese', es: 'Chino', pt: 'Chinês', fr: 'Chinois' },
+    '安': { en: 'A', es: 'A', pt: 'A', fr: 'A' },
+    '备注': { en: 'Note', es: 'Nota', pt: 'Nota', fr: 'Note' },
+    '金额(亿元)': { en: 'Amount (B)', es: 'Monto (M)', pt: 'Valor (M)', fr: 'Montant (M)' },
+    '亿元': { en: 'B', es: 'M', pt: 'M', fr: 'M' },
+    '暂无匹配信号': { en: 'No matching signals', es: 'No hay señales', pt: 'Nenhum sinal', fr: 'Aucun signal' },
+    'DeepSeek 引擎': { en: 'DeepSeek engine', es: 'Motor DeepSeek', pt: 'Mecanismo DeepSeek', fr: 'Moteur DeepSeek' },
+    '本地引擎': { en: 'Local engine', es: 'Motor local', pt: 'Mecanismo local', fr: 'Moteur local' },
+    '近365天': { en: 'Last 365 days', es: 'Últimos 365 días', pt: 'Últimos 365 dias', fr: '365 derniers jours' }
+  };
+  var P14 = {
+    '大模型政务与金融场景新增多个标杆订单，推理成本进一步下降': { en: 'New benchmark orders in government and finance; inference costs keep falling', es: 'Nuevos pedidos de referencia en gobierno y finanzas; costes de inferencia siguen bajando', pt: 'Novos pedidos de referência em governo e finanças; custos de inferência continuam caindo', fr: "Nouvelles commandes de référence dans les administrations et la finance; coûts d'inférence en baisse" },
+    '人形机器人工厂产线批量交付，车企场景落地': { en: 'Humanoid robot production lines deliver in volume; automotive use cases roll out', es: 'Líneas de producción de robots humanoides entregan en volumen; casos de uso en automoción', pt: 'Linhas de produção de robôs humanoides entregam em volume; casos de uso automotivo', fr: "Chaînes de production de robots humanoïdes livrent en volume; cas d'usage automobile" },
+    '全栈GPU进入多家智算中心，生态适配加速': { en: 'Full-stack GPUs enter more AI computing centers; ecosystem adoption accelerates', es: 'Las GPU full-stack entran en más centros de IA; la adopción del ecosistema se acelera', pt: 'GPUs full-stack entram em mais centros de IA; adoção do ecossistema acelera', fr: "Les GPU full-stack entrent dans plus de centres IA; adoption de l'écosystème en accélération" },
+    '全固态电池中试线投产，装车验证推进': { en: 'All-solid-state battery pilot line starts; vehicle validation advances', es: 'Línea piloto de batería de estado sólido en marcha; avanza la validación en vehículos', pt: 'Linha piloto de bateria de estado sólido em operação; validação veicular avança', fr: 'Ligne pilote de batterie tout solide en service; validation véhicule en cours' },
+    'ADC管线海外授权交易落地，临床III期推进': { en: 'ADC pipeline overseas licensing closed; Phase III advances', es: 'Cierre de licencia en el extranjero de ADC; avanza la fase III', pt: 'Licenciamento internacional de ADC fechado; fase III avança', fr: 'Licence internationale ADC conclue; phase III en cours' },
+    '数据底座与AI分析产品进入大型企业采购': { en: 'Data foundation and AI analytics products enter enterprise procurement', es: 'Productos de datos y análisis IA entran en compras empresariales', pt: 'Produtos de dados e análise de IA entram na compra empresarial', fr: "Produits de données et d'analyse IA intégrés aux achats des grandes entreprises" },
+    '港股上市辅导推进，海外门店突破千家': { en: 'HKEX listing prep advances; overseas stores pass 1,000', es: 'Avance de preparación para cotizar en Hong Kong; más de 1.000 tiendas en el extranjero', pt: 'Preparação para listagem em HK avança; mais de 1.000 lojas no exterior', fr: "Préparation à la cote à Hong Kong en cours; plus de 1 000 magasins à l'étranger" },
+    '协作机器人海外订单放量': { en: 'Collaborative robot overseas orders accelerate', es: 'Pedidos internacionales de robots colaborativos en aumento', pt: 'Pedidos internacionais de robôs colaborativos aumentam', fr: 'Commandes internationales de robots collaboratifs en hausse' },
+    '具身智能机器人大模型进入仓储物流场景': { en: 'Embodied AI robot foundation models enter warehousing and logistics', es: 'Modelos de robots con IA encarnada entran en logística y almacenes', pt: 'Modelos de robôs com IA incorporada entram em armazéns e logística', fr: "Modèles de robots à IA incarnée entrent dans la logistique et l'entreposage" },
+    'Agent自动化平台进入金融行业标杆客户': { en: 'Agent automation platform lands flagship financial clients', es: 'La plataforma de automatización Agent capta clientes financieros de referencia', pt: 'Plataforma de automação Agent conquista clientes financeiros de referência', fr: "La plateforme d'automatisation Agent séduit des clients financiers de référence" },
+    '海外供应链基地建设，全球门店扩张': { en: 'Overseas supply-chain bases under construction; global store expansion', es: 'Construcción de bases de suministro en el extranjero; expansión global de tiendas', pt: 'Construção de bases de suprimento no exterior; expansão global de lojas', fr: "Construction de bases d'approvisionnement à l'étranger; expansion mondiale" },
+    'AI CRM产品商业化加速': { en: 'AI CRM product commercialization accelerates', es: 'Se acelera la comercialización del CRM con IA', pt: 'Comercialização do CRM com IA acelera', fr: 'Commercialisation du CRM IA en accélération' },
+    'AI大模型融资热度延续，近30天头部项目吸金超180亿元': { en: 'AI LLM funding momentum continues; top projects raised over RMB 18B in 30 days', es: 'El impulso de financiación de LLM continúa; los mejores proyectos captan más de 18.000 M en 30 días', pt: 'O ímpeto de captação de LLM continua; principais projetos captam mais de 18 bilhões em 30 dias', fr: 'La dynamique de financement des LLM se poursuit; plus de 18 Md levés en 30 jours' },
+    '高瓴创投近48小时连投智谱AI与蜜雪冰城': { en: 'Hillhouse Ventures closed Zhipu AI and Mixue within 48 hours', es: 'Hillhouse Ventures cerró Zhipu AI y Mixue en 48 horas', pt: 'Hillhouse Ventures fechou Zhipu AI e Mixue em 48 horas', fr: 'Hillhouse Ventures a conclu Zhipu AI et Mixue en 48 heures' },
+    '外资参与硬科技大额交易占比回升': { en: 'Foreign capital share in large hard-tech deals rebounds', es: 'Repunta la cuota de capital extranjero en grandes acuerdos de tecnología', pt: 'Participação do capital estrangeiro em grandes negócios de tecnologia recupera', fr: 'La part des capitaux étrangers dans les grandes opérations tech remonte' },
+    '固态电池融资升温，太蓝新能源完成新一轮': { en: 'Solid-state battery funding heats up; Tailan New Energy closes new round', es: 'Se intensifica la financiación de baterías de estado sólido; Tailan cierra nueva ronda', pt: 'Captação de baterias de estado sólido esquenta; Tailan fecha nova rodada', fr: "Le financement des batteries à état solide s'intensifie; Tailan boucle un nouveau tour" },
+    '智谱AI、澜码科技等先后交割，单笔最高35亿元': { en: 'Zhipu AI and Lanma Tech closed in sequence; largest single round RMB 3.5B', es: 'Zhipu AI y Lanma Tech cerraron en secuencia; mayor ronda 3.500 M', pt: 'Zhipu AI e Lanma Tech fecharam em sequência; maior rodada de 3,5 bilhões', fr: 'Zhipu AI et Lanma Tech ont bouclé en série; plus gros tour de 3,5 Md' },
+    '智谱AI B+轮与蜜雪冰城战略轮先后完成': { en: 'Zhipu AI Series B+ and Mixue strategic round completed back to back', es: 'Serie B+ de Zhipu AI y ronda estratégica de Mixue completadas consecutivamente', pt: 'Série B+ da Zhipu AI e rodada estratégica da Mixue concluídas em sequência', fr: 'Série B+ de Zhipu AI et tour stratégique de Mixue bouclés coup sur coup' },
+    '淡马锡、软银愿景参与固态电池与AI芯片项目': { en: 'Temasek and SoftBank Vision joined solid-state battery and AI chip deals', es: 'Temasek y SoftBank Vision participaron en baterías de estado sólido y chips de IA', pt: 'Temasek e SoftBank Vision participaram de baterias de estado sólido e chips de IA', fr: 'Temasek et SoftBank Vision ont participé aux opérations batteries et puces IA' },
+    '太蓝新能源全固态中试线投产，装车验证推进': { en: "Tailan's all-solid-state pilot line starts; vehicle validation advances", es: 'Línea piloto de estado sólido de Tailan en marcha; avanza validación vehículo', pt: 'Linha piloto de estado sólido da Tailan em operação; validação veicular avança', fr: 'Ligne pilote tout solide de Tailan en service; validation véhicule en cours' },
+    '跨境': { en: 'Cross-border', es: 'Transfronterizo', pt: 'Transfronteiriço', fr: 'Transfrontalier' },
+    'Kimi多模态与推理成本优化，C端订阅增长': { en: 'Kimi multimodal capabilities and lower inference costs; consumer subscriptions grow', es: 'Capacidades multimodales de Kimi y menores costes de inferencia; crecen las suscripciones', pt: 'Capacidades multimodais do Kimi e custos de inferência menores; assinaturas crescem', fr: "Capacités multimodales de Kimi et coûts d'inférence réduits; abonnements en hausse" },
+    '人形机器人海外订单放量，量产交付提速': { en: 'Humanoid robot overseas orders accelerate; volume delivery speeds up', es: 'Pedidos internacionales de robots humanoides en aumento; entrega en volumen se acelera', pt: 'Pedidos internacionais de robôs humanoides aumentam; entrega em volume acelera', fr: 'Commandes internationales de robots humanoïdes en hausse; livraisons en volume accélèrent' },
+    '国产GPU新一代产品发布，生态适配加速': { en: 'New-generation domestic GPU launched; ecosystem adoption accelerates', es: 'Nueva GPU nacional lanzada; acelera la adopción del ecosistema', pt: 'Nova GPU nacional lançada; adoção do ecossistema acelera', fr: "Nouvelle GPU nationale lancée; adoption de l'écosystème en accélération" },
+    '半固态电池出货量提升，储能订单增长': { en: 'Semi-solid-state battery shipments rise; storage orders grow', es: 'Aumentan los envíos de baterías semisólidas; crecen pedidos de almacenamiento', pt: 'Envios de baterias semissólidas aumentam; pedidos de armazenamento crescem', fr: 'Les expéditions de batteries semi-solides augmentent; commandes de stockage en hausse' },
+    '双抗管线临床数据读出，IPO进程推进': { en: 'Bispecific antibody clinical data readout; IPO process advances', es: 'Lectura de datos clínicos de anticuerpos biespecíficos; avanza el proceso de OPI', pt: 'Leitura de dados clínicos de anticorpos biespecíficos; processo de IPO avança', fr: "Lecture de données cliniques des anticorps bispécifiques; processus d'IPO en cours" },
+    'AI CRM企业客户规模化扩展': { en: 'AI CRM expands enterprise customer scale', es: 'El CRM con IA amplía la escala de clientes empresariales', pt: 'CRM com IA amplia escala de clientes empresariais', fr: "Le CRM IA étend l'échelle des clients entreprises" },
+    'Micro-LED微显示产线扩产': { en: 'Micro-LED microdisplay production line expands', es: 'Línea de microdisplay Micro-LED en expansión', pt: 'Linha de microdisplay Micro-LED em expansão', fr: 'Ligne de micro-affichage Micro-LED en expansion' },
+    '海外门店扩张，供应链数字化升级': { en: 'Overseas store expansion; digital supply-chain upgrade', es: 'Expansión de tiendas en el extranjero; actualización digital de la cadena de suministro', pt: 'Expansão de lojas no exterior; atualização digital da cadeia de suprimentos', fr: "Expansion des magasins à l'étranger; modernisation numérique de la chaîne" },
+    '量贩零食门店突破万店': { en: 'Bulk snack chain passes 10,000 stores', es: 'Cadena de snacks de volumen supera las 10.000 tiendas', pt: 'Rede de snacks de volume ultrapassa 10.000 lojas', fr: 'La chaîne de snacks en volume dépasse 10 000 magasins' },
+    '车规芯片新平台量产装车': { en: 'New automotive chip platform enters mass production', es: 'Nueva plataforma de chip para automoción entra en producción en serie', pt: 'Nova plataforma de chip automotivo entra em produção em série', fr: 'Nouvelle plateforme de puces auto entre en production de série' },
+    'AI大模型与应用层融资热度延续，头部项目近30天吸金超200亿元': { en: 'AI LLM and application funding momentum continues; top projects raised over RMB 20B in 30 days', es: 'El impulso de financiación de LLM y aplicaciones continúa; más de 20.000 M en 30 días', pt: 'O ímpeto de captação de LLM e aplicações continua; mais de 20 bilhões em 30 dias', fr: 'La dynamique de financement des LLM et applications se poursuit; plus de 20 Md en 30 jours' },
+    '腾讯投资近30天加码AI大模型与消费科技': { en: 'Tencent Investment stepped up AI LLM and consumer tech in 30 days', es: 'Tencent Investment intensificó LLM y tecnología de consumo en 30 días', pt: 'Tencent Investment intensificou LLM e tecnologia de consumo em 30 dias', fr: 'Tencent Investment a renforcé les LLM et la tech grand public en 30 jours' },
+    '固态电池与储能融资升温': { en: 'Solid-state battery and storage funding heats up', es: 'Se intensifica la financiación de baterías de estado sólido y almacenamiento', pt: 'Captação de baterias de estado sólido e armazenamento esquenta', fr: "Le financement des batteries à état solide et du stockage s'intensifie" },
+    '外资与产业资本共同参与硬科技大额轮次': { en: 'Foreign and corporate capital co-lead large hard-tech rounds', es: 'Capital extranjero y corporativo coparticipan en grandes rondas de tecnología', pt: 'Capital estrangeiro e corporativo coparticipam de grandes rodadas de tecnologia', fr: 'Capitaux étrangers et corporate coparticipent aux grands tours tech' },
+    '智谱AI、月之暗面、澜码科技等先后交割，单笔最高35亿元': { en: 'Zhipu AI, Moonshot AI and Lanma Tech closed in sequence; largest single round RMB 3.5B', es: 'Zhipu AI, Moonshot AI y Lanma Tech cerraron en secuencia; mayor ronda 3.500 M', pt: 'Zhipu AI, Moonshot AI e Lanma Tech fecharam em sequência; maior rodada de 3,5 bilhões', fr: 'Zhipu AI, Moonshot AI et Lanma Tech ont bouclé en série; plus gros tour de 3,5 Md' },
+    '月之暗面、蜜雪冰城等交易完成': { en: 'Moonshot AI and Mixue rounds completed', es: 'Rondas de Moonshot AI y Mixue completadas', pt: 'Rodadas de Moonshot AI e Mixue concluídas', fr: 'Tours de Moonshot AI et Mixue bouclés' },
+    '卫蓝新能源新一轮交割，装车与储能订单增长': { en: 'Weilan New Energy closed a new round; vehicle and storage orders grow', es: 'Weilan New Energy cerró nueva ronda; crecen pedidos de vehículos y almacenamiento', pt: 'Weilan New Energy fechou nova rodada; pedidos veiculares e de armazenamento crescem', fr: 'Weilan New Energy a bouclé un nouveau tour; commandes véhicules et stockage en hausse' },
+    '淡马锡、比亚迪投资参与固态电池与人形机器人项目': { en: 'Temasek and BYD Investment joined solid-state battery and humanoid robot deals', es: 'Temasek y BYD Investment participaron en baterías de estado sólido y robots humanoides', pt: 'Temasek e BYD Investment participaram de baterias de estado sólido e robôs humanoides', fr: 'Temasek et BYD Investment ont participé aux opérations batteries et robots humanoïdes' },
+    '数据截至 2026-08-18 09:30': { en: 'Data as of 2026-08-18 09:30', es: 'Datos al 2026-08-18 09:30', pt: 'Dados em 2026-08-18 09:30', fr: 'Données au 2026-08-18 09:30' },
+    'AI写作与文本生成': { en: 'AI writing and text generation', es: 'Escritura con IA y generación de texto', pt: 'Escrita com IA e geração de texto', fr: 'Écriture IA et génération de texte' },
+    '数据截至 2026-08-17 09:30': { en: 'Data as of 2026-08-17 09:30', es: 'Datos al 2026-08-17 09:30', pt: 'Dados em 2026-08-17 09:30', fr: 'Données au 2026-08-17 09:30' }
+  };
+  function merge() {
+    var out = {};
+    [P, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14].forEach(function (m) {
+      Object.keys(m).forEach(function (k) { out[k] = m[k]; });
+    });
+    return out;
+  }
+  var PHRASES = merge();
+  (function () {
+    var units = {
+      '笔': { en: ' deals', es: ' operaciones', pt: ' negócios', fr: ' opérations' },
+      ' 笔': { en: ' deals', es: ' operaciones', pt: ' negócios', fr: ' opérations' },
+      '家': { en: ' institutions', es: ' instituciones', pt: ' instituições', fr: ' institutions' },
+      ' 家': { en: ' institutions', es: ' instituciones', pt: ' instituições', fr: ' institutions' },
+      '条': { en: ' deals', es: ' operaciones', pt: ' negócios', fr: ' opérations' },
+      ' 条': { en: ' deals', es: ' operaciones', pt: ' negócios', fr: ' opérations' },
+      '起': { en: ' events', es: ' eventos', pt: ' eventos', fr: ' événements' },
+      ' 起': { en: ' events', es: ' eventos', pt: ' eventos', fr: ' événements' },
+      '项': { en: ' items', es: ' elementos', pt: ' itens', fr: ' éléments' },
+      ' 项': { en: ' items', es: ' elementos', pt: ' itens', fr: ' éléments' },
+      '年': { en: '', es: '', pt: '', fr: '' },
+      ' 年': { en: '', es: '', pt: '', fr: '' },
+      '人': { en: ' people', es: ' personas', pt: ' pessoas', fr: ' personnes' },
+      ' 人': { en: ' people', es: ' personas', pt: ' pessoas', fr: ' personnes' }
+    };
+    var n;
+    for (n = 0; n <= 99; n++) {
+      Object.keys(units).forEach(function (u) {
+        var e = units[u];
+        PHRASES[n + u] = { en: n + e.en, es: n + e.es, pt: n + e.pt, fr: n + e.fr };
       });
     }
-    return s;
+  })();
+
+
+  function phrase(text, lang) {
+    if (!text) return text;
+    var entry = PHRASES[text];
+    if (!entry) return text;
+    if (Object.prototype.hasOwnProperty.call(entry, lang)) return entry[lang];
+    if (Object.prototype.hasOwnProperty.call(entry, 'en')) return entry.en;
+    return text;
   }
 
-  function get() { return lang; }
-
-  function set(next) {
-    if (!DICT[next]) return;
-    lang = next;
-    try { localStorage.setItem(LANG_KEY, next); } catch (e) { /* ignore */ }
-    document.documentElement.lang = next === 'zh' ? 'zh-CN' : next;
-    translateStatic();
-    document.dispatchEvent(new CustomEvent('langchange'));
-  }
-
-  function translateStatic() {
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      el.textContent = t(el.getAttribute('data-i18n'));
-    });
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-      el.setAttribute('placeholder', t(el.getAttribute('data-i18n-placeholder')));
-    });
-    document.querySelectorAll('[data-i18n-title]').forEach(el => {
-      el.setAttribute('title', t(el.getAttribute('data-i18n-title')));
-    });
-    document.querySelectorAll('[data-i18n-aria]').forEach(el => {
-      el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria')));
-    });
-    const pageName = t('app.name');
-    if (pageName !== 'app.name') document.title = 'CryptoIntel · ' + pageName;
-    const desc = t('meta.desc');
-    if (desc !== 'meta.desc') {
-      document.querySelector('meta[name="description"]').setAttribute('content', desc);
-      document.querySelector('meta[property="og:description"]').setAttribute('content', desc);
+  function dynamicSignal(lang, kind, a, b, c) {
+    if (lang === 'zh') {
+      if (kind === 'inst') return a + ' 近30天出手 ' + b + ' 笔';
+      if (kind === 'sector') return a + ' 赛道近30天融资额环比增长 ' + b + '%';
+      if (kind === 'evidS') return '本期 ' + a + '，上期 ' + b + '，资金明显向头部项目集中';
+      if (kind === 'evidI') return '覆盖多个赛道，出手频率高于近12个月均值';
+      return a;
     }
+    if (kind === 'inst') {
+      if (lang === 'es') return a + ' cerró ' + b + ' operaciones en 30 días';
+      if (lang === 'pt') return a + ' fechou ' + b + ' negócios em 30 dias';
+      if (lang === 'fr') return a + ' a conclu ' + b + ' opérations en 30 jours';
+      return a + ' closed ' + b + ' deals in 30 days';
+    }
+    if (kind === 'sector') {
+      if (lang === 'es') return a + ' financiación +' + b + '% intermensual';
+      if (lang === 'pt') return a + ' captação +' + b + '% mês a mês';
+      if (lang === 'fr') return a + ' financement +' + b + '% en mensuel';
+      return a + ' funding up ' + b + '% MoM';
+    }
+    if (kind === 'evidS') {
+      if (lang === 'es') return a + ' frente a ' + b + ' previo; el capital se concentra en líderes';
+      if (lang === 'pt') return a + ' vs ' + b + ' anterior; capital concentra-se em líderes';
+      if (lang === 'fr') return a + ' contre ' + b + ' précédent; capitaux concentrés sur les leaders';
+      return a + ' vs ' + b + ' prior; capital concentrating in leaders';
+    }
+    if (kind === 'evidI') {
+      if (lang === 'es') return 'Varios sectores; frecuencia superior al promedio de 12 meses';
+      if (lang === 'pt') return 'Vários setores; frequência acima da média de 12 meses';
+      if (lang === 'fr') return 'Plusieurs secteurs; fréquence au-dessus de la moyenne sur 12 mois';
+      return 'Multiple sectors; frequency above 12-month average';
+    }
+    return a;
   }
 
-  return { t, get, set, DICT, translateStatic };
+  function summary(lang, d) {
+    if (lang === 'zh') return null;
+    var dir = d.g >= 0 ? (lang === 'es' ? 'aumento' : lang === 'pt' ? 'aumento' : lang === 'fr' ? 'hausse' : 'up') : (lang === 'es' ? 'caída' : lang === 'pt' ? 'queda' : lang === 'fr' ? 'baisse' : 'down');
+    var top = d.topSec.map(function (s) { return phrase(s, lang); }).join(lang === 'es' || lang === 'pt' ? ' y ' : lang === 'fr' ? ' et ' : ', ');
+    if (lang === 'en') return 'In the last 30 days, ' + d.n + ' deals raised ' + d.total + ' (' + Math.abs(d.g).toFixed(1) + '% ' + dir + ' MoM). Capital concentrated in ' + top + '; government and corporate funds lifted participation in large hard-tech rounds.';
+    if (lang === 'es') return 'En los últimos 30 días se cerraron ' + d.n + ' operaciones por ' + d.total + ' (' + Math.abs(d.g).toFixed(1) + '% ' + dir + ' intermensual). El capital se concentró en ' + top + '; fondos públicos y corporativos aumentaron su participación en rondas de tecnología.';
+    if (lang === 'pt') return 'Nos últimos 30 dias, ' + d.n + ' negócios captaram ' + d.total + ' (' + Math.abs(d.g).toFixed(1) + '% ' + dir + ' mês a mês). O capital concentrou-se em ' + top + '; fundos públicos e corporativos ampliaram a participação em rodadas de tecnologia.';
+    if (lang === 'fr') return 'Au cours des 30 derniers jours, ' + d.n + ' opérations ont levé ' + d.total + ' (' + Math.abs(d.g).toFixed(1) + '% en ' + dir + ' mensuelle). Les capitaux se sont concentrés sur ' + top + ' ; fonds publics et corporatifs ont accru leur participation dans la tech de pointe.';
+    return null;
+  }
+
+  function focusList(lang) {
+    if (lang === 'zh') return null;
+    if (lang === 'en') return ['AI LLM rounds approach Series D; watch valuation anchors of leaders', 'Embodied AI production and delivery data will set next-round pricing', 'After domestic GPU Series D wave, watch ecosystem fit and procurement', 'Consumer Pre-IPO window reopens; watch overseas revenue and margins', 'Government funds increasing; watch local-investment clauses'];
+    if (lang === 'es') return ['Los LLM se acercan a Serie D; vigilar valoraciones', 'Producción y entrega definirán la próxima valoración', 'Tras la ola Serie D de GPUs, vigilar adopción y compras', 'Se abre ventana Pre-IPO; vigilar ingresos y márgenes', 'Aumentan fondos públicos; vigilar cláusulas locales'];
+    if (lang === 'pt') return ['LLMs se aproximam da Série D; observar avaliações', 'Produção e entrega definirão a próxima avaliação', 'Após a onda Série D de GPUs, observar adoção e compras', 'Janela Pré-IPO reabre; observar receitas e margens', 'Fundos públicos aumentam; observar cláusulas locais'];
+    return ['Les LLM approchent la Série D; suivre les valorisations', 'Production et livraisons fixeront la prochaine valorisation', 'Après la vague Série D des GPU, suivre adoption et achats', 'Fenêtre Pré-IPO rouverte; suivre revenus et marges', 'Fonds publics en hausse; suivre les clauses locales'];
+  }
+
+  return {
+    langs: LANGS,
+    phrase: phrase,
+    dynamicSignal: dynamicSignal,
+    summary: summary,
+    focusList: focusList,
+    lookup: PHRASES
+  };
 })();

@@ -2,280 +2,79 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="description" content="CryptoIntel 虚拟货币情报站：实时行情、技术指标、资讯情绪与链上数据监控">
-<meta name="theme-color" content="#0b0f13">
-<meta property="og:title" content="CryptoIntel 虚拟货币情报站">
-<meta property="og:description" content="实时行情、K线、技术指标、资讯情绪与链上数据监控">
-<meta property="og:type" content="website">
-<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CryptoIntel 虚拟货币情报站</title>
-<link rel="stylesheet" href="styles.css?v=20260817">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Ctext x='32' y='43' font-size='26' font-weight='700' text-anchor='middle' fill='%2334d399' font-family='Arial'%3ECF%3C/text%3E%3C/svg%3E">
+<title>资本流径 · VC资金流向情报平台</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <span class="brand-mark">CI</span>
-    <div class="brand-text"><strong>CryptoIntel</strong><span data-i18n="app.name">虚拟货币情报站</span></div>
-  </div>
-  <form class="askbox" id="askForm" autocomplete="off">
-    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
-    <input id="askInput" data-i18n-placeholder="ask.placeholder" placeholder="问点什么：BTC 技术面 / ETH 最新资讯 / 市场情绪" autocomplete="off">
-    <button type="submit" data-i18n="ask.submit">提问</button>
-  </form>
-  <div class="topbar-right">
-    <span id="liveBadge" class="live-badge"><i></i><span data-i18n="badge.checking">数据源检测中</span></span>
-    <div class="lang-switch" id="langSwitch" role="group" aria-label="Language">
-      <button data-lang="zh" class="active">中文</button><button data-lang="en">EN</button><button data-lang="es">ES</button>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">CF</div>
+      <div class="brand-text">
+        <div class="brand-name">资本流径</div>
+        <div class="brand-sub">CAPITAL FLOW INTELLIGENCE</div>
+      </div>
     </div>
-    <button id="settingsBtn" class="icon-btn" data-i18n-title="settings.title" data-i18n-aria="settings.title" aria-label="设置">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h.01a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h.01a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.01a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-    </button>
-  </div>
-</header>
+    <nav class="nav" id="main-nav">
+      <button class="nav-item active" data-view="overview"><span class="nav-ic" data-icon="gauge"></span><span>市场总览</span></button>
+      <button class="nav-item" data-view="flow"><span class="nav-ic" data-icon="share2"></span><span>资金流向图谱</span></button>
+      <button class="nav-item" data-view="deals"><span class="nav-ic" data-icon="list"></span><span>融资动态</span></button>
+      <button class="nav-item" data-view="institutions"><span class="nav-ic" data-icon="landmark"></span><span>机构与公司</span></button>
+      <button class="nav-item" data-view="signals"><span class="nav-ic" data-icon="radar"></span><span>信号监控</span><span class="nav-badge" id="signal-badge">0</span></button>
+      <button class="nav-item" data-view="ecosystem"><span class="nav-ic" data-icon="layers"></span><span>生态全景</span></button>
+      <button class="nav-item" data-view="intel"><span class="nav-ic" data-icon="sparkles"></span><span>AI研判</span></button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="side-update" id="side-update">数据截至 2026-08-18 09:30</div>
+    </div>
+  </aside>
 
-<nav class="tabs" id="mainTabs" aria-label="主导航">
-  <button class="active" data-view="market" data-i18n="nav.market">行情总览</button>
-  <button data-view="news" data-i18n="nav.news">资讯情报</button>
-  <button data-view="chain" data-i18n="nav.chain">链上洞察</button>
-  <button data-view="ai" data-i18n="nav.ai">AI 助手</button>
-</nav>
-
-<main>
-  <section id="view-market" class="view active">
-    <div class="ticker-strip" id="tickerStrip" aria-label="币种行情条"></div>
-
-    <div class="grid market-grid">
-      <article class="card chart-card">
-        <header class="card-head">
-          <div class="chart-title">
-            <h2 id="chartTitle">BTC/USDT</h2>
-            <div class="chart-meta" id="chartMeta"></div>
-          </div>
-          <div class="chart-controls">
-            <div class="seg" id="intervalSeg" role="group" aria-label="K线周期">
-              <button data-interval="15m">15m</button>
-              <button data-interval="1h" class="active">1h</button>
-              <button data-interval="4h">4h</button>
-              <button data-interval="1d">1d</button>
-            </div>
-            <div class="seg" id="overlaySeg" role="group" aria-label="指标叠加">
-              <button id="overlayMa" class="active">MA</button>
-              <button id="overlayBoll">BOLL</button>
-              <button id="overlayVol" class="active">VOL</button>
-            </div>
-          </div>
-        </header>
-        <div class="chart-body">
-          <div id="candleChart" class="chart-surface"></div>
-          <div id="chartTip" class="chart-tip hidden"></div>
+  <div class="app-main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menu-btn" data-icon="menu" aria-label="菜单"></button>
+      <div class="search-wrap">
+        <span class="search-ic" data-icon="search"></span>
+        <input id="global-search" class="search-input" placeholder="搜索公司、机构、交易..." autocomplete="off" aria-label="全局搜索">
+      </div>
+      <div class="top-actions">
+        <div class="range-control">
+          <span class="range-label">时间范围</span>
+          <select id="range-select" class="select" aria-label="时间范围">
+            <option value="30">近30天</option>
+            <option value="90">近90天</option>
+            <option value="180">近6个月</option>
+            <option value="365" selected>近12个月</option>
+          </select>
         </div>
-        <div class="chart-foot">
-          <div id="ohlcLegend" data-i18n="chart.loading">K 线数据加载中...</div>
-          <div id="chartSource" class="source-note"></div>
-        </div>
-      </article>
-
-      <aside class="card side-card">
-        <div class="side-block">
-          <header class="card-head compact">
-            <h2 data-i18n="indicators.title">技术指标</h2>
-            <span id="indicatorTime" class="muted"></span>
-          </header>
-          <div id="indicatorPanel" class="indicator-panel"></div>
-        </div>
-        <div class="side-block">
-          <header class="card-head compact">
-            <h2 data-i18n="signals.title">信号引擎</h2>
-            <button id="rescanBtn" class="mini-btn" data-i18n="signals.rescan" data-i18n-title="signals.rescan" title="重新扫描全部币种">重扫</button>
-          </header>
-          <div id="signalPanel" class="signal-panel"></div>
-        </div>
-      </aside>
-    </div>
-
-    <div class="grid lower-grid">
-      <article class="card depth-card">
-        <header class="card-head compact">
-          <h2 data-i18n="depth.title">订单簿深度</h2>
-          <span id="depthSymbol" class="muted"></span>
-        </header>
-        <div id="depthChart" class="depth-surface"></div>
-      </article>
-
-      <article class="card market-card">
-        <header class="card-head compact">
-          <h2 data-i18n="ai.marketTitle">市场概览</h2>
-          <span class="muted" id="marketTime"></span>
-        </header>
-        <div id="marketOverview" class="market-overview"></div>
-      </article>
-    </div>
-  </section>
-
-  <section id="view-news" class="view">
-    <div class="grid news-top">
-      <article class="card sentiment-card">
-        <header class="card-head compact">
-          <h2 data-i18n="sent.title">AI 情绪雷达</h2>
-          <span class="muted" id="sentimentTime"></span>
-        </header>
-        <div id="sentimentPanel" class="sentiment-panel"></div>
-      </article>
-      <article class="card brief-card">
-        <header class="card-head compact">
-          <h2 data-i18n="brief.title">AI 今日简报</h2>
-          <button id="refreshBrief" class="mini-btn" data-i18n-title="brief.refresh" data-i18n="brief.refresh">刷新</button>
-        </header>
-        <div id="briefBody" class="brief-body"></div>
-      </article>
-    </div>
-
-    <article class="card news-card">
-      <header class="card-head news-head">
-        <h2 data-i18n="news.title">资讯流</h2>
-        <div class="news-controls">
-          <div class="seg" id="sentimentFilter" role="group" aria-label="情绪筛选">
-            <button class="active" data-sent="all" data-i18n="news.all">全部</button>
-            <button data-sent="positive" data-i18n="sent.positive">利好</button>
-            <button data-sent="negative" data-i18n="sent.negative">利空</button>
-            <button data-sent="neutral" data-i18n="sent.neutral">中性</button>
-          </div>
-          <div id="newsCoinFilter" class="chips"></div>
-        </div>
-      </header>
-      <div id="newsList" class="news-list"></div>
-    </article>
-  </section>
-
-  <section id="view-chain" class="view">
-    <div class="grid chain-top">
-      <article class="card net-card">
-        <header class="card-head compact">
-          <h2 data-i18n="chain.net">BTC 网络健康</h2>
-          <span class="muted" id="netTime"></span>
-        </header>
-        <div id="netStats" class="stat-grid"></div>
-      </article>
-      <article class="card fee-card">
-        <header class="card-head compact">
-          <h2 data-i18n="chain.fees">手续费与内存池</h2>
-          <span class="muted" id="mempoolTime"></span>
-        </header>
-        <div id="feePanel" class="fee-panel"></div>
-      </article>
-    </div>
-
-    <div class="grid chain-mid">
-      <article class="card defi-card">
-        <header class="card-head compact">
-          <h2 data-i18n="chain.defi">DeFi 链上 TVL</h2>
-          <span class="muted">DefiLlama</span>
-        </header>
-        <div id="defiPanel" class="defi-panel"></div>
-      </article>
-      <article class="card whale-card">
-        <header class="card-head compact">
-          <h2 data-i18n="chain.whale">巨鲸雷达</h2>
-          <span class="muted" id="whaleSource"></span>
-        </header>
-        <div id="whalePanel" class="whale-panel"></div>
-      </article>
-    </div>
-
-    <article class="card flow-card">
-      <header class="card-head compact">
-        <h2 data-i18n="chain.flows">交易所资金流向</h2>
-        <span class="muted" id="flowNote"></span>
-      </header>
-      <div id="flowPanel" class="flow-panel"></div>
-    </article>
-  </section>
-
-  <section id="view-ai" class="view">
-    <div class="grid ai-grid">
-      <article class="card chat-card">
-        <header class="card-head compact">
-          <h2 data-i18n="ai.title">智能问答</h2>
-          <span class="muted" data-i18n="ai.subtitle">自然语言查询市场数据</span>
-        </header>
-        <div id="chatLog" class="chat-log"></div>
-        <form id="chatForm" class="chat-form" autocomplete="off">
-          <input id="chatInput" data-i18n-placeholder="ai.chatPlaceholder" placeholder="输入问题，如：ETH 的 RSI 是多少？" autocomplete="off">
-          <button type="submit" data-i18n="ask.submit">发送</button>
-        </form>
-      </article>
-      <aside class="card suggest-card">
-        <header class="card-head compact"><h2 data-i18n="ai.helpTitle">常用问题</h2></header>
-        <div id="suggestions" class="suggestion-list"></div>
-      </aside>
-    </div>
-
-    <div class="grid ai-bottom">
-      <article class="card insight-card">
-        <header class="card-head compact">
-          <h2 data-i18n="ai.insight">AI 市场解读</h2>
-          <button id="refreshInsight" class="mini-btn" data-i18n="ai.reinterpret">重新解读</button>
-        </header>
-        <div id="insightBody" class="insight-body"></div>
-      </article>
-      <article class="card report-card">
-        <header class="card-head compact">
-          <h2 data-i18n="ai.timeline">信号时间线</h2>
-          <span class="muted" id="timelineCount"></span>
-        </header>
-        <div id="timelineBody" class="timeline-body"></div>
-      </article>
-    </div>
-  </section>
-</main>
-
-<footer class="footer">
-  <span data-i18n="footer.disclaimer">CryptoIntel · 行情与资讯来自公开接口，不构成投资建议</span>
-  <span id="footerStatus"></span>
-</footer>
-
-<div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-  <div class="modal-card">
-    <header class="modal-head">
-      <h2 id="settingsTitle" data-i18n="settings.title">数据源与 API 配置</h2>
-      <button id="closeSettings" class="icon-btn" data-i18n-aria="common.close" aria-label="关闭">
-        <svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
+        <button class="icon-btn" id="refresh-btn" data-icon="refresh" aria-label="刷新"></button>
+        <button class="icon-btn has-dot" id="alert-btn" data-icon="bell" aria-label="通知"></button>
+        <select id="lang-select" class="select lang-select" aria-label="Language">
+          <option value="zh">中文</option>
+          <option value="en">English</option>
+          <option value="es">Español</option>
+          <option value="pt">Português</option>
+          <option value="fr">Français</option>
+        </select>
+        <div class="avatar">安</div>
+      </div>
     </header>
-    <div class="modal-body">
-      <p class="muted" data-i18n="settings.desc">配置的密钥保存在本机浏览器（localStorage），用于启用扩展数据源。不配置时使用免费公开接口和内置演示数据。</p>
-      <label class="field">
-        <span><span data-i18n="settings.whale">Whale Alert API Key</span> <em data-i18n="settings.optional">（启用真实巨鲸监控）</em></span>
-        <input id="keyWhale" type="password" data-i18n-placeholder="settings.optional" placeholder="可选">
-      </label>
-      <label class="field">
-        <span><span data-i18n="settings.cryptopanic">CryptoPanic API Key</span> <em data-i18n="settings.optional">（启用实时多源资讯）</em></span>
-        <input id="keyCryptoPanic" type="password" data-i18n-placeholder="settings.optional" placeholder="可选">
-      </label>
-      <label class="field">
-        <span><span data-i18n="settings.cryptocompare">CryptoCompare API Key</span> <em data-i18n="settings.optional">（提高资讯接口配额）</em></span>
-        <input id="keyCryptoCompare" type="password" data-i18n-placeholder="settings.optional" placeholder="可选">
-      </label>
-      <div class="source-status" id="sourceStatus"></div>
-    </div>
-    <footer class="modal-foot">
-      <button id="saveSettings" class="primary-btn" data-i18n="settings.save">保存配置</button>
-    </footer>
+    <main class="view-root" id="view-root"></main>
   </div>
 </div>
 
-<div id="toast" class="toast hidden" role="status"></div>
+<div class="drawer-backdrop" id="drawer-backdrop"></div>
+<aside class="drawer" id="drawer" aria-hidden="true"></aside>
+<div class="search-pop" id="search-pop" hidden></div>
+<div class="pop-card" id="alert-pop" hidden></div>
+<div class="toast-root" id="toast-root"></div>
+<div class="modal-backdrop" id="modal-backdrop" hidden></div>
+<div class="modal" id="modal" role="dialog" hidden></div>
+<div class="tooltip" id="tooltip" hidden></div>
 
-<script src="lang-zh.js?v=20260817"></script>
-<script src="lang-en.js?v=20260817"></script>
-<script src="lang-es.js?v=20260817"></script>
-<script src="i18n.js?v=20260817"></script>
-<script src="config.js?v=20260817"></script>
-<script src="indicators.js?v=20260817"></script>
-<script src="data.js?v=20260817"></script>
-<script src="charts.js?v=20260817"></script>
-<script src="ai.js?v=20260817"></script>
-<script src="app.js?v=20260817"></script>
+<script src="data.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

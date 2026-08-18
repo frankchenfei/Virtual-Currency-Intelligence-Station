@@ -1,529 +1,356 @@
-/* 数据层：公开接口聚合、WebSocket 推送、离线演示数据兜底 */
-const Data = (() => {
-  const store = {
-    tickers: {},
-    klines: {},
-    indicators: {},
-    depth: {},
-    news: [],
-    newsSource: null,
-    fng: null,
-    fngHistory: [],
-    global: null,
-    onchain: { btc: null, fees: null, mempool: null, defi: [], whales: [], flows: [] },
-    signals: [],
-    lastUpdate: null,
-    status: {}
-  };
-  const listeners = [];
-  const timers = [];
-  let notifyTimer = null;
-
-  function subscribe(fn) { listeners.push(fn); }
-  function notify() {
-    if (notifyTimer) return;
-    notifyTimer = setTimeout(() => {
-      notifyTimer = null;
-      listeners.forEach(fn => { try { fn(); } catch (e) { console.error(e); } });
-    }, 600);
-  }
-
-  function setActive(symbol, interval) {
-    store.activeSymbol = symbol;
-    if (interval) store.activeInterval = interval;
-  }
-
-  function getKeys() {
-    try { return JSON.parse(localStorage.getItem(APP_STORE_KEY)) || {}; }
-    catch (e) { return {}; }
-  }
-  function saveKeys(keys) {
-    localStorage.setItem(APP_STORE_KEY, JSON.stringify(keys));
-  }
-
-  function setStatus(id, ok, label, detail) {
-    store.status[id] = { ok, label, detail: detail || '' };
-  }
-
-  function fetchJson(url, timeout = 9000, opts = {}) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeout);
-    const headers = Object.assign({ Accept: 'application/json' }, opts.headers || {});
-    return fetch(url, Object.assign({}, opts, { headers, signal: ctrl.signal }))
-      .then(res => {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
-      })
-      .finally(() => clearTimeout(timer));
-  }
-
-  function fmtNum(n, digits = 2) {
-    if (n == null || isNaN(n)) return '--';
-    if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(digits) + 'B';
-    if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(digits) + 'M';
-    if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(digits) + 'K';
-    return n.toFixed(digits);
-  }
-
-  function hashSeed(str) {
-    let h = 2166136261;
-    for (let i = 0; i < str.length; i++) {
-      h ^= str.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return h >>> 0;
-  }
-  function seededRandom(seed) {
-    let s = seed || 1;
-    return function () {
-      s |= 0; s = (s + 0x6D2B79F5) | 0;
-      let t = Math.imul(s ^ (s >>> 15), 1 | s);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-
-  const coinDef = symbol => CONFIG.coins.find(c => c.symbol === symbol);
-
-  function demoKlines(symbol, interval) {
-    const def = coinDef(symbol);
-    const int = CONFIG.intervals.find(i => i.id === interval);
-    const rand = seededRandom(hashSeed(symbol + interval + 'k'));
-    const points = [];
-    let price = def.base * (0.92 + rand() * 0.16);
-    const ms = interval === '15m' ? 900000 : interval === '1h' ? 3600000 : interval === '4h' ? 14400000 : 86400000;
-    const now = Date.now();
-    const start = now - (int.limit - 1) * ms;
-    for (let i = 0; i < int.limit; i++) {
-      const drift = (rand() - 0.46) * 0.02;
-      const vol = 0.008 + rand() * 0.02;
-      const open = price;
-      const close = Math.max(open * (1 + drift), def.base * 0.01);
-      const high = Math.max(open, close) * (1 + rand() * vol);
-      const low = Math.min(open, close) * (1 - rand() * vol);
-      const volume = (def.base > 500 ? 200 : 20000) * (0.4 + rand() * 1.6);
-      points.push([start + i * ms, open, high, low, close, volume, start + i * ms + ms, '0', 0, '0', '0', '0']);
-      price = close;
-    }
-    return points;
-  }
-
-  function demoTickers() {
-    const out = {};
-    CONFIG.coins.forEach(c => {
-      const rand = seededRandom(hashSeed(c.symbol + 't'));
-      const change = -7 + rand() * 16;
-      const price = c.base * (1 + change / 100) * (0.985 + rand() * 0.03);
-      out[c.symbol] = {
-        price, change, high: price * 1.02, low: price * 0.985,
-        volume: (c.base > 500 ? 2e4 : 2e6) * (0.5 + rand()),
-        quoteVolume: (c.base > 500 ? 1.2e9 : 4e8) * (0.5 + rand()),
-        source: 'demo'
-      };
-    });
-    return out;
-  }
-
-  function demoDepth(symbol) {
-    const t = store.tickers[symbol];
-    const price = t ? t.price : coinDef(symbol).base;
-    const rand = seededRandom(hashSeed(symbol + 'd'));
-    const bids = [], asks = [];
-    for (let i = 0; i < 30; i++) {
-      const pB = price * (1 - (i + 1) * 0.0004);
-      const pA = price * (1 + (i + 1) * 0.0004);
-      bids.push([+pB.toFixed(2), +(rand() * 3 + 0.5).toFixed(3)]);
-      asks.push([+pA.toFixed(2), +(rand() * 3 + 0.5).toFixed(3)]);
-    }
-    return { bids, asks, price, source: 'demo' };
-  }
-
-  const DEMO_NEWS = [
-    { id: 9001, source: 'NBD', title: '比特币升破 63,000 美元，日内涨 0.19%', body: '8月17日，比特币重新站上 63,000 美元，短线资金回流主流币，市场情绪有所修复。', titleEn: 'Bitcoin breaks above $63,000, up 0.19% intraday', titleEs: 'Bitcoin supera los $63.000 y sube un 0,19% en el día', bodyEn: 'On August 17, Bitcoin reclaimed the $63,000 level as short-term flows returned to major coins and sentiment improved.', bodyEs: 'El 17 de agosto, Bitcoin recuperó los $63.000 mientras los flujos a corto plazo volvieron a las criptos principales y mejoró el sentimiento.', published_on: Date.now() / 1000 - 3600, categories: ['BTC', 'ETF'], url: 'https://www.stnn.cc/detail/6a825e78903cc42d5e494e79.html', imageurl: '', sentiment: 'positive', coins: ['BTC'] },
-    { id: 9002, source: 'Binance Square', title: '以太坊突破 1,900 USDT，24 小时涨幅约 1.06%', body: '币安市场数据显示，以太坊已突破 1,900 USDT，DeFi 流动性和链上活跃度同步回升。', titleEn: 'Ethereum breaks past 1,900 USDT, up about 1.06% in 24 hours', titleEs: 'Ethereum supera los 1.900 USDT, +1,06% en 24 horas', bodyEn: 'Binance market data shows Ethereum clearing 1,900 USDT as DeFi liquidity and on-chain activity recover.', bodyEs: 'Los datos de Binance muestran que Ethereum supera los 1.900 USDT mientras repuntan la liquidez DeFi y la actividad on-chain.', published_on: Date.now() / 1000 - 7200, categories: ['ETH'], url: 'https://www.binance.bh/zh-CN/square/post/08-17-2026-ethereum-eth-surpasses-1-900-usdt-with-a-1-06-increase-in-24-hours-356531931290849', imageurl: '', sentiment: 'positive', coins: ['ETH'] },
-    { id: 9003, source: 'Gate News', title: '“牛来”观影热潮催化 Meme 币交易活跃，Solana 生态热度抬升', body: 'Gate 日报指出，猎奇观影内容带动 Meme 币交易活跃，Solana 网络交易量、手续费与活跃地址同步上升。', titleEn: 'Curiosity-driven meme-coin wave lifts Solana ecosystem activity', titleEs: 'La ola de meme coins impulsada por la curiosidad eleva la actividad del ecosistema Solana', bodyEn: 'Gate daily coverage highlights rising meme-coin trading tied to viral viewing content, with Solana volume, fees and active addresses climbing.', bodyEs: 'La cobertura diaria de Gate destaca el auge de las meme coins ligado a contenido viral, con volumen, comisiones y direcciones activas de Solana al alza.', published_on: Date.now() / 1000 - 10800, categories: ['SOL', 'MEME'], url: 'https://www.gatenode.irish/zh/news/detail/gate-daily-report-august-17-curiosity-driven-viewing-of-the-bull-is-coming-23501912', imageurl: '', sentiment: 'positive', coins: ['SOL'] },
-    { id: 9004, source: 'ChainCatcher', title: 'SEC 取消原定加密监管规则会议，创新豁免计划再度推迟', body: '美国证券交易委员会突然取消原定上周五举行的会议，该会议原计划推进加密监管规则制定，创新豁免计划再次延后。', titleEn: 'SEC cancels crypto rulemaking meeting; innovation exemption delayed again', titleEs: 'La SEC cancela la reunión de reglas cripto y vuelve a retrasar la exención de innovación', bodyEn: 'The U.S. SEC abruptly canceled its meeting originally scheduled for last Friday, pushing back crypto rulemaking and an innovation exemption plan again.', bodyEs: 'La SEC de EE.UU. canceló la reunión prevista para el viernes pasado, retrasando de nuevo el avance regulatorio cripto y el plan de exención de innovación.', published_on: Date.now() / 1000 - 14400, categories: ['Regulation'], url: 'https://www.chaincatcher.com/en/article/2283190', imageurl: '', sentiment: 'negative', coins: [] },
-    { id: 9005, source: 'Yonhap Infomax', title: '美国通胀放缓但风险偏好有限，比特币买盘延续', body: '韩国联合 Infomax 报道，美国通胀数据放缓后风险偏好仍有限，资金继续集中流入比特币，主流山寨币轮动尚未出现。', titleEn: 'US inflation cools but risk appetite stays limited; Bitcoin buying continues', titleEs: 'La inflación de EE.UU. se enfría, pero el apetito de riesgo sigue limitado; continúa la compra de Bitcoin', bodyEn: 'Yonhap Infomax reports that despite softer US inflation, risk appetite remains limited and flows keep concentrating in Bitcoin, with no clear altcoin rotation yet.', bodyEs: 'Yonhap Infomax señala que, pese a una inflación más suave en EE.UU., el apetito de riesgo sigue limitado y los flujos se concentran en Bitcoin sin rotación clara hacia altcoins.', published_on: Date.now() / 1000 - 18000, categories: ['Macro'], url: 'https://en.infomaxai.com/news/articleView.html?idxno=135247', imageurl: '', sentiment: 'neutral', coins: ['BTC'] },
-    { id: 9006, source: 'Foresight News', title: 'Peter Schiff：黄金和白银似将突破，而比特币在下跌', body: '黄金倡导者及经济学家 Peter Schiff 表示，黄金和白银似乎正迎来突破，而比特币则承压下行。', titleEn: 'Peter Schiff says gold and silver look set to break out while Bitcoin falls', titleEs: 'Peter Schiff: el oro y la plata parecen listos para romper al alza mientras Bitcoin cae', bodyEn: 'Gold advocate and economist Peter Schiff said gold and silver appear to be breaking out while Bitcoin remains under pressure.', bodyEs: 'El economista y defensor del oro Peter Schiff dijo que el oro y la plata parecen romper al alza mientras Bitcoin sigue presionado.', published_on: Date.now() / 1000 - 21600, categories: ['BTC', 'Macro'], url: 'https://foresightnews.pro/news/detail/110978', imageurl: '', sentiment: 'negative', coins: ['BTC'] },
-    { id: 9007, source: 'Gate News', title: '以太坊基金会审核 66 项 Hegotá 升级提案', body: 'Gate 日报显示，以太坊基金会正对 66 项 Hegotá 升级提案进行审核，网络升级路线图受到社区广泛关注。', titleEn: 'Ethereum Foundation reviews 66 Hegotá upgrade proposals', titleEs: 'La Fundación Ethereum revisa 66 propuestas de actualización Hegotá', bodyEn: 'Gate daily reports that the Ethereum Foundation is reviewing 66 Hegotá upgrade proposals, drawing broad community attention to the network roadmap.', bodyEs: 'Gate Daily informa que la Fundación Ethereum revisa 66 propuestas de actualización Hegotá, atrayendo atención de la comunidad hacia la hoja de ruta.', published_on: Date.now() / 1000 - 28800, categories: ['ETH'], url: 'https://www.gatenode.irish/zh/news/detail/gate-daily-report-august-17-curiosity-driven-viewing-of-the-bull-is-coming-23501912', imageurl: '', sentiment: 'neutral', coins: ['ETH'] },
-    { id: 9008, source: 'Gate News', title: 'BTC 在 63,000 美元附近窄幅盘整，低流动性叠加卖单墙压制', body: 'Gate 新闻显示，BTC 在 63,000 美元附近窄幅波动，低流动性叠加卖单墙继续压制短线反弹空间。', titleEn: 'BTC consolidates near $63,000 as low liquidity and a sell wall cap upside', titleEs: 'BTC consolida cerca de $63.000; la baja liquidez y un muro de venta limitan el alza', bodyEn: 'Gate News reports BTC trading in a narrow range near $63,000, with low liquidity and a sell wall limiting short-term upside.', bodyEs: 'Gate News informa que BTC opera en un rango estrecho cerca de $63.000, con baja liquidez y un muro de venta limitando el avance a corto plazo.', published_on: Date.now() / 1000 - 36000, categories: ['BTC'], url: 'https://web.gate.it/zh-tw/news/detail/btc-dipped-005-over-the-past-hour-low-liquidity-combined-with-a-sell-wall-23503517', imageurl: '', sentiment: 'neutral', coins: ['BTC'] }
+(function () {
+  const sectors = [
+    { id: 'ai', name: '人工智能', color: '#6366f1' },
+    { id: 'robot', name: '具身智能', color: '#f59e0b' },
+    { id: 'chip', name: '半导体', color: '#0ea5e9' },
+    { id: 'energy', name: '新能源', color: '#10b981' },
+    { id: 'bio', name: '生物医药', color: '#ec4899' },
+    { id: 'saas', name: '企业服务', color: '#8b5cf6' },
+    { id: 'mf', name: '先进制造', color: '#f97316' },
+    { id: 'consumer', name: '消费零售', color: '#ef4444' }
   ];
 
-  function localizeNews(list) {
-    const lang = I18N.get();
-    if (lang === 'en') return list.map(n => n.titleEn ? Object.assign({}, n, { title: n.titleEn, body: n.bodyEn || n.body }) : n);
-    if (lang === 'es') return list.map(n => n.titleEs ? Object.assign({}, n, { title: n.titleEs, body: n.bodyEs || n.body }) : n);
-    return list.map(n => {
-      const src = DEMO_NEWS.find(d => d.id === n.id);
-      return src ? Object.assign({}, n, { title: src.title, body: src.body }) : n;
-    });
-  }
+  const institutions = [
+    ['inst-hl', '高瓴创投', '头部VC', '北京', 2000, ['ai', 'robot', 'energy', 'bio', 'consumer'], 9, '聚焦科技、医疗与消费的长期成长投资'],
+    ['inst-hs', '红杉中国', '头部VC', '北京', 3000, ['ai', 'robot', 'chip', 'energy', 'saas', 'consumer'], 10, '全周期投资，覆盖种子到成长期'],
+    ['inst-idg', 'IDG资本', '头部VC', '北京', 1200, ['ai', 'robot', 'chip', 'saas'], 9, '科技与早期创业生态的长期建设者'],
+    ['inst-jw', '经纬创投', '头部VC', '上海', 800, ['ai', 'robot', 'saas'], 8, '聚焦互联网、科技与企业服务的早期基金'],
+    ['inst-yc', '源码资本', '头部VC', '北京', 600, ['ai', 'robot', 'saas'], 8, '专注数据智能与硬科技的成长基金'],
+    ['inst-qm', '启明创投', '头部VC', '上海', 500, ['ai', 'bio', 'robot'], 7, '深耕信息技术与健康医疗的双币基金'],
+    ['inst-zg', '真格基金', '天使基金', '北京', 120, ['ai', 'robot', 'saas'], 6, '专注早期创业投资的天使基金'],
+    ['inst-qj', '奇绩创坛', '天使基金', '北京', 60, ['ai', 'robot'], 5, '专注早期硬科技创业与加速'],
+    ['inst-lc', '蓝驰创投', '美元基金', '北京', 300, ['robot', 'chip', 'ai'], 7, '关注前沿科技与机器人产业'],
+    ['inst-hd', '红点中国', '美元基金', '上海', 280, ['chip', 'robot'], 7, '技术驱动型投资，覆盖半导体与智能硬件'],
+    ['inst-xx', '线性资本', '天使基金', '上海', 90, ['saas', 'ai'], 5, '聚焦数据智能与软件创新'],
+    ['inst-yq', '云启资本', '头部VC', '上海', 220, ['mf', 'ai'], 6, '投资先进制造与智能技术'],
+    ['inst-lx', '联想创投', '产业资本', '北京', 400, ['ai', 'chip', 'robot'], 8, '联想集团的科技产业基金'],
+    ['inst-tencent', '腾讯投资', '产业资本', '深圳', 2500, ['ai', 'saas'], 9, '腾讯生态战略投资'],
+    ['inst-ali', '阿里巴巴战投', '产业资本', '杭州', 1800, ['ai', 'consumer'], 9, '阿里生态与消费科技投资'],
+    ['inst-mi', '小米战投', '产业资本', '北京', 600, ['robot', 'chip', 'ai'], 7, '小米生态链与硬科技投资'],
+    ['inst-byd', '比亚迪投资', '产业资本', '深圳', 500, ['robot', 'energy'], 7, '新能源与智能制造的产业资本'],
+    ['inst-cicc', '中金资本', 'PE机构', '北京', 1500, ['chip', 'ai', 'energy', 'bio', 'mf', 'consumer'], 9, '全资产类别私募股权投资平台'],
+    ['inst-gtct', '国投创合', '政府引导基金', '北京', 900, ['chip', 'bio', 'mf'], 8, '国家级产业投资基金'],
+    ['inst-shsc', '上海科创基金', '政府引导基金', '上海', 800, ['chip', 'ai', 'mf'], 8, '上海科创中心建设股权投资基金'],
+    ['inst-hfct', '合肥产投', '政府引导基金', '合肥', 700, ['energy', 'chip', 'robot'], 7, '合肥战新产业投资平台'],
+    ['inst-szc', '深创投', 'PE机构', '深圳', 1000, ['chip', 'energy', 'robot', 'mf'], 8, '综合性创业投资集团'],
+    ['inst-yuany', '元禾原点', '政府引导基金', '苏州', 300, ['chip', 'ai'], 6, '苏州本地早期科技基金'],
+    ['inst-tongc', '同创伟业', 'PE机构', '深圳', 200, ['mf', 'bio'], 6, '成长期股权投资机构'],
+    ['inst-gaorong', '高榕创投', '头部VC', '上海', 400, ['ai', 'consumer', 'saas'], 7, '专注新经济与科技的VC基金'],
+    ['inst-sbvv', '软银愿景', '海外基金', '香港', 8000, ['ai', 'chip', 'robot'], 9, '全球科技成长基金'],
+    ['inst-temasek', '淡马锡', '海外基金', '新加坡', 4000, ['energy', 'consumer', 'bio'], 8, '新加坡主权财富基金'],
+    ['inst-tiger', '老虎环球', '海外基金', '香港', 2000, ['ai', 'consumer'], 8, '全球科技与消费成长基金'],
+    ['inst-plum', '梅花创投', '天使基金', '北京', 150, ['ai', 'consumer', 'saas'], 7, '早期科技与消费投资'],
+    ['inst-legend', '君联资本', 'PE机构', '北京', 1000, ['chip', 'bio', 'ai'], 8, '科创与医疗健康投资'],
+    ['inst-cgc', '华映资本', '头部VC', '上海', 300, ['ai', 'consumer', 'saas'], 7, '早期与成长期风险投资'],
+    ['inst-k2', '险峰长青', '天使基金', '北京', 100, ['ai', 'robot', 'saas'], 6, '消费与科技早期投资'],
+    ['inst-gsr', '金沙江创投', '美元基金', '北京', 350, ['ai', 'chip', 'robot'], 7, 'AI与硬科技早期投资'],
+    ['inst-nl', '北极光创投', '美元基金', '北京', 280, ['ai', 'bio', 'chip'], 7, '深科技与半导体投资'],
+    ['inst-sinovation', '创新工场', '头部VC', '北京', 250, ['ai', 'robot', 'saas'], 7, '人工智能与企业服务投资'],
+    ['inst-gaocheng', '高成资本', '头部VC', '北京', 200, ['saas', 'ai'], 6, '企业软件与AI投资'],
+    ['inst-lightspeed', '光速中国', '美元基金', '上海', 320, ['ai', 'robot', 'consumer'], 7, '科技消费与机器人投资'],
+    ['inst-shunwei', '顺为资本', '头部VC', '北京', 500, ['ai', 'robot', 'consumer'], 7, '科技与消费成长基金'],
+    ['inst-5y', '五源资本', '头部VC', '上海', 450, ['ai', 'chip', 'saas'], 7, 'AI与互联网早期基金'],
+    ['inst-ggv', '纪源资本', '美元基金', '上海', 600, ['ai', 'consumer', 'saas'], 8, '科技与消费成长基金'],
+    ['inst-joy', '愉悦资本', '头部VC', '北京', 220, ['consumer', 'energy', 'ai'], 6, '消费品牌成长投资'],
+    ['inst-casstar', '中科创星', '政府引导基金', '西安', 400, ['chip', 'robot', 'mf'], 7, '前沿科技产业化投资'],
+    ['inst-inno', '英诺天使', '天使基金', '北京', 80, ['ai', 'robot', 'mf'], 5, '硬科技早期孵化与投资'],
+    ['inst-frees', '峰瑞资本', '头部VC', '北京', 180, ['ai', 'bio', 'consumer'], 6, '科技与医疗早期投资'],
+    ['inst-blackant', '黑蚁资本', '头部VC', '上海', 200, ['consumer'], 6, '消费品牌成长投资'],
+    ['inst-challenger', '挑战者创投', '产业资本', '北京', 120, ['consumer', 'saas'], 5, '新消费与互联网投资'],
+    ['inst-off', '东方富海', 'PE机构', '深圳', 300, ['mf', 'energy', 'bio'], 6, '先进制造与新能源投资'],
+    ['inst-fortune', '达晨财智', 'PE机构', '深圳', 350, ['mf', 'chip', 'ai'], 7, '智能制造与科技投资']
+  ].map(function (r) {
+    return { id: r[0], name: r[1], type: r[2], region: r[3], aum: r[4], focus: r[5], scale: r[6], desc: r[7] };
+  });
 
-  function localizeStoreNews() {
-    if (store.newsSource === 'demo' && store.news.length) store.news = localizeNews(store.news);
-  }
+  const companies = [
+    ['co-zhipu', '智谱AI', 'ai', '北京', 2019, 'B+轮', 320, 1800, ['大模型', '行业智能'], '国产大模型头部厂商，政务与金融场景规模化落地'],
+    ['co-moonshot', '月之暗面', 'ai', '北京', 2023, 'B轮', 280, 900, ['大模型', 'C端应用'], 'Kimi智能助手背后的模型公司'],
+    ['co-minimax', 'MiniMax', 'ai', '上海', 2021, 'C轮', 260, 1100, ['大模型', '多模态'], '多模态大模型与AI陪伴产品公司'],
+    ['co-baichuan', '百川智能', 'ai', '北京', 2023, 'A+轮', 150, 700, ['大模型', '医疗AI'], '通用与医疗大模型创业公司'],
+    ['co-01ai', '零一万物', 'ai', '北京', 2023, 'B轮', 180, 650, ['大模型', 'AI Infra'], '李开复创立的AI大模型公司'],
+    ['co-stepfun', '阶跃星辰', 'ai', '上海', 2023, 'A+轮', 160, 600, ['大模型', 'Agent'], '多模态与Agent方向的大模型公司'],
+    ['co-infinigence', '无问芯穹', 'ai', '上海', 2023, 'A轮', 90, 400, ['AI Infra', '算力'], 'AI算力基础设施公司'],
+    ['co-luchen', '潞晨科技', 'ai', '北京', 2021, 'B轮', 70, 350, ['大模型', '分布式训练'], '大模型训练推理系统公司'],
+    ['co-unitree', '宇树科技', 'robot', '杭州', 2016, 'C轮', 260, 900, ['人形机器人', '四足'], '四足与人形机器人整机公司'],
+    ['co-agibot', '智元机器人', 'robot', '上海', 2023, 'C轮', 240, 1500, ['人形机器人', '具身智能'], '稚晖君创立的通用机器人公司'],
+    ['co-galaxy', '银河通用', 'robot', '北京', 2023, 'B+轮', 180, 800, ['人形机器人', '大模型'], '通用具身智能机器人公司'],
+    ['co-starnova', '星动纪元', 'robot', '北京', 2023, 'A+轮', 60, 300, ['人形机器人'], '清华系人形机器人公司'],
+    ['co-limxd', '逐际动力', 'robot', '深圳', 2022, 'B轮', 80, 420, ['人形机器人', '足式'], '足式与通用机器人公司'],
+    ['co-pacinn', '帕西尼感知', 'robot', '深圳', 2021, 'A轮', 45, 260, ['触觉传感', '机器人'], '多维触觉传感与人形机器人公司'],
+    ['co-cloudwood', '云深处科技', 'robot', '杭州', 2017, 'B轮', 55, 320, ['四足机器人', '巡检'], '四足机器人整机与行业方案公司'],
+    ['co-autozi', '自变量机器人', 'robot', '深圳', 2023, 'A+轮', 35, 180, ['具身智能', '机器人大模型'], '具身智能通用模型公司'],
+    ['co-biren', '壁仞科技', 'chip', '上海', 2019, 'D轮', 420, 1200, ['GPU', '算力'], '国产高性能GPU与AI算力公司'],
+    ['co-muxi', '沐曦集成电路', 'chip', '上海', 2020, 'D轮', 360, 1000, ['GPU', 'AI芯片'], '全栈GPU芯片设计公司'],
+    ['co-moore', '摩尔线程', 'chip', '北京', 2020, 'D轮', 300, 1100, ['GPU', '国产化'], '国产全功能GPU公司'],
+    ['co-suan', '燧原科技', 'chip', '上海', 2018, 'C+轮', 200, 800, ['AI芯片', '算力'], '云端AI训练与推理芯片公司'],
+    ['co-sic', '芯驰科技', 'chip', '南京', 2018, 'C轮', 130, 700, ['车规芯片', '座舱'], '智能汽车座舱与网关芯片公司'],
+    ['co-tianshu', '天数智芯', 'chip', '上海', 2018, 'C轮', 140, 650, ['GPGPU', 'AI算力'], '通用GPU云端训练芯片公司'],
+    ['co-hanbo', '瀚博半导体', 'chip', '上海', 2018, 'C+轮', 150, 600, ['AI芯片', '视频'], 'AI视觉与视频处理芯片公司'],
+    ['co-tailan', '太蓝新能源', 'energy', '重庆', 2018, 'C轮', 220, 900, ['固态电池'], '半固态与全固态电池公司'],
+    ['co-weilan', '卫蓝新能源', 'energy', '北京', 2016, 'C+轮', 180, 1100, ['固态电池', '储能'], '固态电池技术公司'],
+    ['co-ronghe', '融和元储', 'energy', '上海', 2021, 'B轮', 60, 300, ['储能系统'], '工商业储能系统公司'],
+    ['co-yidao', '一道新能', 'energy', '衢州', 2018, 'Pre-IPO', 280, 800, ['光伏组件', 'N型'], '高效光伏组件制造公司'],
+    ['co-zhongrun', '中润光能', 'energy', '徐州', 2018, 'D轮', 140, 900, ['光伏电池'], '光伏电池片生产商'],
+    ['co-xinnuo', '信诺维', 'bio', '苏州', 2017, 'C轮', 90, 350, ['创新药', 'ADC'], '肿瘤与自身免疫创新药公司'],
+    ['co-yimeng', '宜明昂科', 'bio', '上海', 2015, 'Pre-IPO', 120, 400, ['创新药', '双抗'], '肿瘤免疫双抗药物公司'],
+    ['co-yingeng', '映恩生物', 'bio', '上海', 2018, 'D轮', 140, 500, ['ADC', '创新药'], 'ADC药物研发公司'],
+    ['co-xiansheng', '先声再明', 'bio', '南京', 2020, 'B轮', 70, 300, ['创新药', '肿瘤'], '先声药业创新药平台'],
+    ['co-pufang', '普方生物', 'bio', '苏州', 2018, 'C轮', 80, 280, ['ADC', '创新药'], 'ADC新药研发公司'],
+    ['co-sensors', '神策数据', 'saas', '北京', 2015, 'D+轮', 55, 800, ['数据分析', '营销科技'], '客户数据与分析平台'],
+    ['co-minglue', '明略科技', 'saas', '北京', 2014, 'E轮', 90, 1600, ['知识图谱', '企业服务'], '企业级AI与知识图谱服务商'],
+    ['co-lanma', '澜码科技', 'saas', '上海', 2022, 'A+轮', 25, 150, ['Agent', 'RPA'], '大模型驱动的流程自动化公司'],
+    ['co-shizai', '实在智能', 'saas', '杭州', 2018, 'B轮', 40, 500, ['RPA', '智能体'], '智能体与RPA产品公司'],
+    ['co-fenbeitong', '分贝通', 'saas', '北京', 2016, 'C+轮', 50, 600, ['费控', 'SaaS'], '企业费用管理SaaS平台'],
+    ['co-sitan', '思坦科技', 'mf', '深圳', 2018, 'C轮', 80, 400, ['Micro-LED', '显示'], 'Micro-LED显示技术公司'],
+    ['co-huazhuo', '华卓精科', 'mf', '北京', 2012, 'D轮', 180, 800, ['光刻机', '精密制造'], '半导体光刻机核心部件公司'],
+    ['co-lingming', '灵明光子', 'mf', '深圳', 2018, 'B+轮', 45, 250, ['SPAD', '激光雷达'], '单光子探测器芯片公司'],
+    ['co-atum', '阿童木机器人', 'mf', '天津', 2013, 'C轮', 35, 300, ['工业机器人', '并联'], '高速并联工业机器人公司'],
+    ['co-bawang', '霸王茶姬', 'consumer', '成都', 2017, 'Pre-IPO', 600, 4000, ['新茶饮', '出海'], '原叶鲜奶茶连锁品牌'],
+    ['co-cotti', '库迪咖啡', 'consumer', '上海', 2022, 'B轮', 120, 8000, ['咖啡连锁'], '平价咖啡连锁品牌'],
+    ['co-lingshi', '零食很忙', 'consumer', '长沙', 2019, 'C轮', 180, 6000, ['零食量贩'], '量贩零食连锁品牌'],
+    ['co-mixue', '蜜雪冰城', 'consumer', '郑州', 1997, '战略轮', 500, 30000, ['茶饮连锁', '供应链'], '万店茶饮供应链公司'],
+    ['co-shengshu', '生数科技', 'ai', '北京', 2023, 'A+轮', 90, 300, ['多模态', '视频生成'], '多模态视频生成模型公司'],
+    ['co-modelbest', '面壁智能', 'ai', '北京', 2022, 'A轮', 40, 200, ['端侧大模型'], '端侧大模型公司'],
+    ['co-deeplang', '深言科技', 'ai', '北京', 2022, 'A轮', 25, 120, ['AI写作'], 'AI写作与文本生成公司'],
+    ['co-silicon', '硅基流动', 'ai', '北京', 2023, 'A轮', 45, 150, ['AI Infra', '推理'], 'AI推理与模型服务基础设施'],
+    ['co-fourier', '傅利叶智能', 'robot', '上海', 2015, 'D轮', 120, 800, ['康复机器人', '人形'], '康复与人形机器人公司'],
+    ['co-dreame', '追觅科技', 'robot', '苏州', 2017, 'C轮', 150, 4000, ['扫地机器人', '人形'], '智能清洁与家庭服务机器人公司'],
+    ['co-leju', '乐聚机器人', 'robot', '深圳', 2016, 'B+轮', 50, 300, ['人形机器人'], '人形机器人整机公司'],
+    ['co-ubtech', '优必选', 'robot', '深圳', 2012, '战略轮', 600, 3000, ['人形机器人'], '人形机器人与智能服务机器人公司'],
+    ['co-bst', '黑芝麻智能', 'chip', '武汉', 2016, 'C轮', 180, 800, ['车规芯片', '自动驾驶'], '车规级自动驾驶芯片公司'],
+    ['co-siengine', '芯擎科技', 'chip', '武汉', 2018, 'B轮', 60, 300, ['车规SoC'], '智能座舱与自动驾驶SoC公司'],
+    ['co-xepic', '芯华章', 'chip', '南京', 2020, 'C轮', 70, 400, ['EDA'], '数字验证EDA工具公司'],
+    ['co-svolt', '蜂巢能源', 'energy', '常州', 2018, 'Pre-IPO', 400, 10000, ['动力电池'], '动力电池与储能电芯公司'],
+    ['co-aesc', '远景动力', 'energy', '上海', 2019, '战略轮', 600, 9000, ['动力电池', '储能'], '动力电池研发与制造公司'],
+    ['co-keymed', '康诺亚', 'bio', '成都', 2016, 'Pre-IPO', 150, 600, ['创新药', '肿瘤'], '肿瘤免疫创新药公司'],
+    ['co-jacobio', '加科思', 'bio', '北京', 2015, 'C轮', 80, 300, ['小分子创新药'], '小分子创新药公司'],
+    ['co-neocrm', '销售易', 'saas', '北京', 2011, 'D轮', 60, 1000, ['CRM'], '企业级CRM平台'],
+    ['co-fxiaoke', '纷享销客', 'saas', '北京', 2011, 'F轮', 70, 1200, ['CRM'], '协同与连接型CRM SaaS'],
+    ['co-dobot', '越疆科技', 'mf', '深圳', 2015, 'C轮', 90, 600, ['协作机器人'], '协作机器人公司'],
+    ['co-chapanda', '茶百道', 'consumer', '成都', 2008, '战略轮', 120, 7000, ['新茶饮'], '新茶饮连锁品牌'],
+    ['co-heytea', '喜茶', 'consumer', '深圳', 2012, '战略轮', 200, 5000, ['新茶饮'], '现制茶饮连锁品牌']
+  ].map(function (r) {
+    return { id: r[0], name: r[1], sector: r[2], region: r[3], founded: r[4], stage: r[5], estValuation: r[6], employees: r[7], tags: r[8], desc: r[9] };
+  });
 
-  function demoWhales() {
-    const rows = [
-      { chain: 'BTC', amount: 1248.5, usd: 84_200_000, side: 'in', exchange: 'Binance', time: Date.now() - 8 * 60000 },
-      { chain: 'ETH', amount: 9800, usd: 34_500_000, side: 'out', exchange: 'OKX', time: Date.now() - 34 * 60000 },
-      { chain: 'BTC', amount: 860.2, usd: 58_000_000, side: 'out', exchange: 'Coinbase', time: Date.now() - 71 * 60000 },
-      { chain: 'SOL', amount: 185_000, usd: 32_900_000, side: 'in', exchange: 'Bybit', time: Date.now() - 128 * 60000 },
-      { chain: 'ETH', amount: 5120, usd: 18_000_000, side: 'in', exchange: 'Unknown', time: Date.now() - 190 * 60000 },
-      { chain: 'BTC', amount: 430.8, usd: 29_100_000, side: 'out', exchange: 'Unknown', time: Date.now() - 260 * 60000 }
-    ];
-    return rows;
-  }
+  const dealRows = [
+    [101, 'co-zhipu', '2026-08-02', 'B+轮', 35, '中金资本', ['红杉中国', '高瓴创投'], '大模型商业化提速，政务与金融场景规模化落地', { cross: false }],
+    [102, 'co-moonshot', '2026-07-18', 'B轮', 18, '腾讯投资', ['红杉中国', '高榕创投'], 'C端产品增长强劲，推理成本持续下降', { cross: false }],
+    [103, 'co-minimax', '2026-06-26', 'C轮', 26, '阿里巴巴战投', ['高瓴创投', '经纬创投'], '多模态模型与AI陪伴产品进入商业化阶段', { cross: false }],
+    [104, 'co-baichuan', '2026-05-22', 'A+轮', 12, '源码资本', ['腾讯投资'], '医疗大模型通过多项临床场景验证', { cross: false }],
+    [105, 'co-01ai', '2026-04-11', 'B轮', 15, '红杉中国', ['高瓴创投'], '企业级Agent产品矩阵扩展', { cross: false }],
+    [106, 'co-stepfun', '2026-08-10', 'A+轮', 10, '启明创投', ['高瓴创投'], 'Agent方向产品上线并进入政企客户验证', { cross: false }],
+    [107, 'co-infinigence', '2026-07-02', 'A轮', 8, '联想创投', ['中金资本'], 'AI算力调度平台接入多家云厂商', { cross: false }],
+    [108, 'co-luchen', '2026-06-08', 'B轮', 6, '高瓴创投', ['红点中国'], '分布式训练系统服务头部模型厂商', { cross: false }],
+    [109, 'co-zhipu', '2025-11-19', 'B轮', 20, '红杉中国', ['中金资本'], '大模型行业应用收入环比增长', { cross: false }],
+    [110, 'co-moonshot', '2025-12-10', 'A轮', 10, '高榕创投', ['真格基金'], 'Kimi月活用户快速增长', { cross: false }],
+    [111, 'co-minimax', '2026-01-15', 'B轮', 15, '高瓴创投', ['经纬创投'], '多模态模型版本更新', { cross: false }],
+    [112, 'co-01ai', '2025-09-16', 'A轮', 7, '真格基金', ['源码资本'], '大模型基础能力建设', { cross: false }],
+    [113, 'co-baichuan', '2025-10-08', 'A轮', 8, '腾讯投资', ['启明创投'], '医疗大模型产品发布', { cross: false }],
+    [114, 'co-stepfun', '2026-02-09', 'A轮', 6, '红杉中国', ['启明创投'], 'Step系列模型发布', { cross: false }],
+    [201, 'co-unitree', '2026-08-08', 'C轮', 28, '红杉中国', ['源码资本', '经纬创投'], '人形机器人量产交付超千台', { cross: false }],
+    [202, 'co-agibot', '2026-07-25', 'C轮', 22, '高瓴创投', ['比亚迪投资'], '通用人形机器人与车企场景合作', { cross: false }],
+    [203, 'co-galaxy', '2026-06-30', 'B+轮', 18, '深创投', ['源码资本'], '大模型驱动机器人大规模场景落地', { cross: false }],
+    [204, 'co-starnova', '2026-07-08', 'A+轮', 6, '联想创投', ['小米战投'], '新一代人形机器人原型发布', { cross: false }],
+    [205, 'co-limxd', '2026-05-18', 'B轮', 7, '红点中国', ['蓝驰创投'], '足式机器人进入工业巡检市场', { cross: false }],
+    [206, 'co-pacinn', '2026-04-22', 'A轮', 4.5, '真格基金', ['奇绩创坛'], '触觉传感方案导入机器人客户', { cross: false }],
+    [207, 'co-cloudwood', '2026-03-11', 'B轮', 5, '蓝驰创投', ['红点中国'], '四足机器人巡检订单增长', { cross: false }],
+    [208, 'co-autozi', '2026-08-04', 'A+轮', 3.5, '真格基金', ['奇绩创坛'], '机器人通用模型在工厂场景验证', { cross: false }],
+    [209, 'co-unitree', '2025-10-20', 'B轮', 12, '源码资本', ['红杉中国'], '四足机器人海外市场放量', { cross: false }],
+    [210, 'co-agibot', '2025-11-06', 'B轮', 10, '比亚迪投资', ['高瓴创投'], '工厂与商用场景合作', { cross: false }],
+    [211, 'co-galaxy', '2026-01-28', 'A轮', 8, '深创投', ['蓝驰创投'], '通用机器人demo落地', { cross: false }],
+    [212, 'co-limxd', '2025-09-22', 'A轮', 3, '红点中国', ['奇绩创坛'], '足式机器人平台完成多场景测试', { cross: false }],
+    [301, 'co-biren', '2026-07-15', 'D轮', 42, '上海科创基金', ['中金资本'], '国产GPU进入互联网大厂规模采购', { cross: false }],
+    [302, 'co-muxi', '2026-06-20', 'D轮', 35, '国投创合', ['中金资本'], '全栈GPU产品线扩展', { cross: false }],
+    [303, 'co-moore', '2026-08-01', 'D轮', 30, '深创投', ['联想创投'], '国产全功能GPU生态适配加速', { cross: false }],
+    [304, 'co-suan', '2026-05-30', 'C+轮', 20, '中金资本', ['红点中国'], '云端AI训练芯片规模化部署', { cross: false }],
+    [305, 'co-sic', '2026-04-16', 'C轮', 12, '元禾原点', ['中金资本'], '车规芯片量产装车', { cross: false }],
+    [306, 'co-tianshu', '2026-03-27', 'C轮', 15, '上海科创基金', ['国投创合'], 'GPGPU产品进入智算中心', { cross: false }],
+    [307, 'co-hanbo', '2026-02-20', 'C+轮', 16, '红点中国', ['联想创投'], '视频AI芯片出货增长', { cross: false }],
+    [308, 'co-biren', '2025-12-18', 'C轮', 28, '中金资本', ['上海科创基金'], '新一代GPU流片', { cross: false }],
+    [309, 'co-muxi', '2025-10-28', 'C轮', 22, '国投创合', ['上海科创基金'], 'GPU产品进入服务器OEM', { cross: false }],
+    [310, 'co-moore', '2026-01-12', 'C轮', 24, '深创投', ['小米战投'], '全功能GPU迭代发布', { cross: false }],
+    [311, 'co-suan', '2025-09-05', 'C轮', 14, '中金资本', ['国投创合'], '训练芯片进入头部算力中心', { cross: false }],
 
-  function demoFlows() {
-    return [
-      { exchange: 'Binance', net: -142.6, inflow: 386, outflow: 528.6, max: 100 },
-      { exchange: 'Bybit', net: -58.3, inflow: 152, outflow: 210.3, max: 100 },
-      { exchange: 'OKX', net: 36.8, inflow: 208, outflow: 171.2, max: 100 },
-      { exchange: 'Coinbase', net: 22.5, inflow: 140, outflow: 117.5, max: 100 }
-    ];
-  }
+    [401, 'co-tailan', '2026-07-20', 'C轮', 25, '中金资本', ['比亚迪投资'], '半固态电池装车验证，产线扩产', { cross: false }],
+    [402, 'co-weilan', '2026-05-12', 'C+轮', 18, '合肥产投', ['中金资本'], '固态电池中试线投产', { cross: false }],
+    [403, 'co-ronghe', '2026-06-14', 'B轮', 8, '红杉中国', ['源码资本'], '工商业储能订单快速增长', { cross: false }],
+    [404, 'co-yidao', '2026-04-30', 'Pre-IPO', 30, '高瓴创投', ['中金资本'], 'N型组件产能扩张与出海', { cross: false }],
+    [405, 'co-zhongrun', '2026-03-05', 'D轮', 12, '深创投', ['国投创合'], '光伏电池片出货量提升', { cross: false }],
+    [406, 'co-tailan', '2025-11-12', 'B轮', 15, '中金资本', ['淡马锡'], '固态电池技术验证完成', { cross: true }],
+    [407, 'co-weilan', '2025-12-05', 'B+轮', 12, '合肥产投', ['软银愿景'], '储能电芯进入示范项目', { cross: true }],
+    [408, 'co-yidao', '2026-01-20', 'Pre-IPO', 22, '高瓴创投', ['中金资本'], '组件出海订单放量', { cross: false }],
+    [501, 'co-xinnuo', '2026-08-06', 'C轮', 9, '高瓴创投', ['启明创投'], 'ADC新药进入关键临床阶段', { cross: false }],
+    [502, 'co-yimeng', '2026-07-11', 'Pre-IPO', 14, '中金资本', ['国投创合'], '双抗管线临床数据读出', { cross: false }],
+    [503, 'co-yingeng', '2026-06-03', 'D轮', 16, '启明创投', ['高瓴创投'], 'ADC管线推进至临床III期', { cross: false }],
+    [504, 'co-xiansheng', '2026-05-25', 'B轮', 8, '国投创合', ['中金资本'], '肿瘤创新药商业化准备', { cross: false }],
+    [505, 'co-pufang', '2026-04-08', 'C轮', 10, '红杉中国', ['启明创投'], 'ADC药物海外授权交易达成', { cross: true }],
+    [506, 'co-xinnuo', '2025-10-15', 'B轮', 6, '高瓴创投', ['启明创投'], '早期管线推进', { cross: false }],
+    [507, 'co-yingeng', '2025-11-28', 'C轮', 9, '启明创投', ['高瓴创投'], 'ADC平台迭代', { cross: false }],
+    [601, 'co-sensors', '2026-07-30', 'D+轮', 5, '红杉中国', ['中金资本'], '数据底座与AI分析产品整合', { cross: false }],
+    [602, 'co-minglue', '2026-05-08', 'E轮', 8, '中金资本', ['红杉中国'], '知识图谱大模型商业化', { cross: false }],
+    [603, 'co-lanma', '2026-06-21', 'A轮', 3, '线性资本', ['奇绩创坛'], 'Agent自动化平台上线', { cross: false }],
+    [604, 'co-shizai', '2026-04-18', 'B轮', 4, '源码资本', ['红杉中国'], '智能体产品进入金融客服场景', { cross: false }],
+    [605, 'co-fenbeitong', '2026-03-16', 'C+轮', 6, '高瓴创投', ['中金资本'], '费控SaaS实现盈利', { cross: false }],
+    [606, 'co-sensors', '2025-11-05', 'D轮', 4, '红杉中国', ['高瓴创投'], '营销科技产品线扩展', { cross: false }],
+    [607, 'co-minglue', '2025-12-22', 'D+轮', 6, '中金资本', ['源码资本'], '行业大模型落地', { cross: false }],
+    [701, 'co-sitan', '2026-08-12', 'C轮', 10, '深创投', ['中金资本'], 'Micro-LED微显示产线良率提升', { cross: false }],
+    [702, 'co-huazhuo', '2026-06-11', 'D轮', 22, '中金资本', ['国投创合'], '光刻机核心部件进入验证阶段', { cross: false }],
+    [703, 'co-lingming', '2026-05-02', 'B+轮', 6, '云启资本', ['红点中国'], 'SPAD芯片导入车载激光雷达', { cross: false }],
+    [704, 'co-atum', '2026-07-06', 'C轮', 4, '同创伟业', ['云启资本'], '并联机器人出口订单增长', { cross: false }],
+    [705, 'co-huazhuo', '2025-09-18', 'C+轮', 15, '中金资本', ['国投创合'], '精密部件批量交付', { cross: false }],
+    [801, 'co-bawang', '2026-08-14', 'Pre-IPO', 50, '高瓴创投', ['中金资本'], '全球化门店扩张，海外收入占比提升', { cross: false }],
+    [802, 'co-cotti', '2026-06-24', 'B轮', 12, '阿里巴巴战投', ['高榕创投'], '万店规模与供应链效率提升', { cross: false }],
+    [803, 'co-lingshi', '2026-05-16', 'C轮', 15, '红杉中国', ['高瓴创投'], '量贩零食门店网络扩张', { cross: false }],
+    [804, 'co-mixue', '2026-03-19', '战略轮', 25, '高瓴创投', ['中金资本'], '供应链体系升级与出海布局', { cross: false }],
+    [805, 'co-bawang', '2025-12-15', 'C轮', 30, '高瓴创投', ['中金资本'], '新茶饮品牌全球化提速', { cross: false }],
+    [806, 'co-cotti', '2025-10-12', 'A轮', 6, '阿里巴巴战投', ['高榕创投'], '咖啡门店快速扩张', { cross: false }],
+    [807, 'co-lingshi', '2026-01-08', 'B+轮', 9, '红杉中国', ['高瓴创投'], '供应链与门店模型验证', { cross: false }],
+    [901, 'co-shengshu', '2026-08-09', 'A+轮', 6, '创新工场', ['真格基金'], '视频生成模型发布', { cross: false }],
+    [902, 'co-modelbest', '2026-07-14', 'A轮', 4, '五源资本', ['险峰长青'], '端侧大模型能力升级', { cross: false }],
+    [903, 'co-deeplang', '2026-06-16', 'A轮', 3, '真格基金', ['奇绩创坛'], 'AI写作与文本生成', { cross: false }],
+    [904, 'co-silicon', '2026-07-28', 'A轮', 5, '金沙江创投', ['梅花创投'], 'AI推理平台商业化', { cross: false }],
+    [905, 'co-fourier', '2026-08-07', 'D轮', 12, '高瓴创投', ['中金资本'], '人形机器人进入医疗场景', { cross: false }],
+    [906, 'co-dreame', '2026-06-12', 'C轮', 15, '顺为资本', ['小米战投'], '家庭服务机器人出海', { cross: false }],
+    [907, 'co-leju', '2026-05-28', 'B+轮', 5, '梅花创投', ['英诺天使'], '人形机器人量产合作', { cross: false }],
+    [908, 'co-ubtech', '2026-03-25', '战略轮', 20, '比亚迪投资', ['深创投'], '人形机器人量产合作', { cross: false }],
+    [909, 'co-bst', '2026-07-22', 'C轮', 18, '君联资本', ['中金资本'], '自动驾驶芯片定点量产', { cross: false }],
+    [910, 'co-siengine', '2026-06-05', 'B轮', 6, '光速中国', ['红点中国'], '智能座舱SoC量产', { cross: false }],
+    [911, 'co-xepic', '2026-05-09', 'C轮', 7, '东方富海', ['国投创合'], 'EDA工具通过头部客户验证', { cross: false }],
+    [912, 'co-svolt', '2026-07-05', 'Pre-IPO', 35, '中金资本', ['国投创合'], '动力电池产能扩张', { cross: false }],
+    [913, 'co-aesc', '2026-04-26', '战略轮', 40, '淡马锡', ['高瓴创投'], '储能与海外市场布局', { cross: true }],
+    [914, 'co-keymed', '2026-08-03', 'Pre-IPO', 15, '启明创投', ['中金资本'], '创新药管线推进', { cross: false }],
+    [915, 'co-jacobio', '2026-06-18', 'C轮', 8, '君联资本', ['北极光创投'], '小分子药物临床推进', { cross: false }],
+    [916, 'co-neocrm', '2026-07-17', 'D轮', 5, '高成资本', ['红杉中国'], 'CRM平台大客户扩张', { cross: false }],
+    [917, 'co-fxiaoke', '2026-05-20', 'F轮', 6, '五源资本', ['高瓴创投'], '协同CRM SaaS增长', { cross: false }],
+    [918, 'co-dobot', '2026-08-11', 'C轮', 9, '达晨财智', ['中科创星'], '协作机器人出海', { cross: false }],
+    [919, 'co-chapanda', '2026-06-27', '战略轮', 18, '挑战者创投', ['愉悦资本'], '新茶饮供应链升级', { cross: false }],
+    [920, 'co-heytea', '2026-05-06', '战略轮', 25, '高瓴创投', ['老虎环球'], '茶饮门店网络扩张', { cross: true }],
+    [921, 'co-zhipu', '2026-08-17', 'B+轮', 30, '高瓴创投', ['红杉中国', '中金资本'], '大模型政务与金融场景新增多个标杆订单，推理成本进一步下降', { cross: false }],
+    [922, 'co-agibot', '2026-08-17', 'C轮', 24, '比亚迪投资', ['高瓴创投', '小米战投'], '人形机器人工厂产线批量交付，车企场景落地', { cross: false }],
+    [923, 'co-muxi', '2026-08-16', 'D轮', 36, '国投创合', ['中金资本', '上海科创基金'], '全栈GPU进入多家智算中心，生态适配加速', { cross: false }],
+    [924, 'co-tailan', '2026-08-16', 'C轮', 28, '中金资本', ['淡马锡', '比亚迪投资'], '全固态电池中试线投产，装车验证推进', { cross: true }],
+    [925, 'co-yingeng', '2026-08-16', 'D轮', 18, '启明创投', ['高瓴创投'], 'ADC管线海外授权交易落地，临床III期推进', { cross: true }],
+    [926, 'co-sensors', '2026-08-17', 'D+轮', 6, '高成资本', ['红杉中国'], '数据底座与AI分析产品进入大型企业采购', { cross: false }],
+    [927, 'co-bawang', '2026-08-15', 'Pre-IPO', 55, '中金资本', ['高瓴创投', '老虎环球'], '港股上市辅导推进，海外门店突破千家', { cross: false }],
+    [928, 'co-dobot', '2026-08-17', 'C轮', 10, '达晨财智', ['中科创星'], '协作机器人海外订单放量', { cross: true }],
+    [929, 'co-galaxy', '2026-08-15', 'B+轮', 20, '深创投', ['源码资本', '蓝驰创投'], '具身智能机器人大模型进入仓储物流场景', { cross: false }],
+    [930, 'co-lanma', '2026-08-16', 'A+轮', 4, '线性资本', ['真格基金'], 'Agent自动化平台进入金融行业标杆客户', { cross: false }],
+    [931, 'co-mixue', '2026-08-17', '战略轮', 30, '高瓴创投', ['中金资本'], '海外供应链基地建设，全球门店扩张', { cross: false }],
+    [932, 'co-neocrm', '2026-08-15', 'D轮', 6, '高成资本', ['红杉中国'], 'AI CRM产品商业化加速', { cross: false }],
+    [933, 'co-moonshot', '2026-08-18', 'B轮', 20, '腾讯投资', ['高瓴创投', '红杉中国'], 'Kimi多模态与推理成本优化，C端订阅增长', { cross: false }],
+    [934, 'co-unitree', '2026-08-18', 'C轮', 30, '源码资本', ['红杉中国'], '人形机器人海外订单放量，量产交付提速', { cross: true }],
+    [935, 'co-biren', '2026-08-18', 'D轮', 45, '上海科创基金', ['国投创合'], '国产GPU新一代产品发布，生态适配加速', { cross: false }],
+    [936, 'co-weilan', '2026-08-18', 'C+轮', 20, '合肥产投', ['中金资本'], '半固态电池出货量提升，储能订单增长', { cross: false }],
+    [937, 'co-yimeng', '2026-08-18', 'Pre-IPO', 16, '中金资本', ['国投创合'], '双抗管线临床数据读出，IPO进程推进', { cross: false }],
+    [938, 'co-fxiaoke', '2026-08-18', 'F轮', 7, '五源资本', ['高瓴创投'], 'AI CRM企业客户规模化扩展', { cross: false }],
+    [939, 'co-sitan', '2026-08-17', 'C轮', 12, '深创投', ['中科创星'], 'Micro-LED微显示产线扩产', { cross: false }],
+    [940, 'co-chapanda', '2026-08-17', '战略轮', 20, '挑战者创投', ['愉悦资本'], '海外门店扩张，供应链数字化升级', { cross: false }],
+    [941, 'co-lingshi', '2026-08-17', 'C轮', 18, '红杉中国', ['高瓴创投'], '量贩零食门店突破万店', { cross: false }],
+    [942, 'co-sic', '2026-08-17', 'C轮', 14, '元禾原点', ['中金资本'], '车规芯片新平台量产装车', { cross: false }]
+  ];
 
-  async function loadTickers() {
-    try {
-      const symbols = CONFIG.coins.map(c => c.symbol + 'USDT');
-      const url = CONFIG.endpoints.binanceRest + '/api/v3/ticker/24hr?symbols=' + encodeURIComponent(JSON.stringify(symbols));
-      const rows = await fetchJson(url, 8000);
-      rows.forEach(r => {
-        const sym = r.symbol.replace('USDT', '');
-        store.tickers[sym] = {
-          price: +r.lastPrice, change: +r.priceChangePercent,
-          high: +r.highPrice, low: +r.lowPrice,
-          volume: +r.volume, quoteVolume: +r.quoteVolume, source: 'live'
-        };
-      });
-      setStatus('binance', true, I18N.t('status.binance'), I18N.t('status.ticker24'));
-    } catch (e) {
-      store.tickers = demoTickers();
-      setStatus('binance', false, I18N.t('status.binance'), I18N.t('status.demo'));
-    }
-    notify();
-  }
 
-  async function loadKlines(symbol, interval) {
-    const int = CONFIG.intervals.find(i => i.id === interval);
-    const key = symbol + ':' + interval;
-    try {
-      const url = CONFIG.endpoints.binanceRest + '/api/v3/klines?symbol=' + symbol + 'USDT&interval=' + int.binance + '&limit=' + int.limit;
-      const rows = await fetchJson(url, 9000);
-      store.klines[key] = { data: rows, source: 'live' };
-      setStatus('klines', true, I18N.t('status.klines'), symbol + ' ' + interval);
-    } catch (e) {
-      store.klines[key] = { data: demoKlines(symbol, interval), source: 'demo' };
-      setStatus('klines', false, I18N.t('status.klines'), I18N.t('status.demo'));
-    }
-    store.indicators[key] = Indicators.buildAll(store.klines[key].data);
-    notify();
-  }
+  const USD_DEALS = new Set([406, 407, 505, 913, 920]);
 
-  async function loadDepth(symbol) {
-    try {
-      const url = CONFIG.endpoints.binanceRest + '/api/v3/depth?symbol=' + symbol + 'USDT&limit=40';
-      const d = await fetchJson(url, 7000);
-      store.depth[symbol] = {
-        bids: d.bids.slice(0, 30).map(b => [+b[0], +b[1]]),
-        asks: d.asks.slice(0, 30).map(a => [+a[0], +a[1]]),
-        price: store.tickers[symbol] ? store.tickers[symbol].price : null,
-        source: 'live'
-      };
-      setStatus('depth', true, I18N.t('status.depth'), symbol + ' 40');
-    } catch (e) {
-      store.depth[symbol] = demoDepth(symbol);
-      setStatus('depth', false, I18N.t('status.depth'), I18N.t('status.demo'));
-    }
-    notify();
-  }
+  const deals = dealRows.map(function (r) {
+    const co = companies.find(function (c) { return c.id === r[1]; });
+    return {
+      id: r[0],
+      company: r[1],
+      companyName: co ? co.name : r[1],
+      sector: co ? co.sector : 'ai',
+      region: co ? co.region : '北京',
+      date: r[2],
+      round: r[3],
+      amount: r[4],
+      lead: r[5],
+      co: r[6],
+      note: r[7],
+      cross: !!(r[8] && r[8].cross),
+      usd: USD_DEALS.has(r[0])
+    };
+  });
 
-  function scoreNewsItem(item) {
-    if (window.AI && typeof window.AI.scoreNews === 'function') return AI.scoreNews(item);
-    return { sentiment: 'neutral', score: 0, coins: [] };
-  }
+  const flows = {
+    monthly: [
+      ['2025-09', 480], ['2025-10', 560], ['2025-11', 390], ['2025-12', 460],
+      ['2026-01', 720], ['2026-02', 580], ['2026-03', 640], ['2026-04', 700],
+      ['2026-05', 820], ['2026-06', 760], ['2026-07', 690], ['2026-08', 980]
+    ],
+    quarterly: {
+      labels: ['2025Q3', '2025Q4', '2026Q1', '2026Q2', '2026Q3*'],
+      inbound: [480, 560, 720, 650, 500],
+      outbound: [310, 380, 460, 520, 330]
+    },
+    outboundRegions: [
+      ['美国', 42, '#6366f1'], ['东南亚', 24, '#10b981'], ['中东', 16, '#f59e0b'], ['欧洲', 12, '#0ea5e9'], ['拉美', 6, '#ec4899']
+    ],
+    fundraising: {
+      labels: ['2025Q3', '2025Q4', '2026Q1', '2026Q2', '2026Q3*'],
+      values: [380, 420, 560, 610, 420]
+    },
+    exits: {
+      labels: ['2025Q3', '2025Q4', '2026Q1', '2026Q2', '2026Q3*'],
+      ipos: [24, 31, 38, 35, 24],
+      ma: [9, 12, 15, 13, 11]
+    },
+    valuationTrend: [
+      ['种子', 3], ['天使', 8], ['A轮', 22], ['B轮', 45], ['C轮', 80], ['D轮', 130], ['Pre-IPO', 260]
+    ],
+    currencyMix: [
+      ['人民币', 76, '#0d9f6e'], ['美元', 24, '#2563eb']
+    ],
+    regionalFlow: [
+      ['北京', '上海', 42], ['北京', '深圳', 36], ['上海', '杭州', 28], ['深圳', '北京', 24],
+      ['杭州', '上海', 18], ['北京', '合肥', 15], ['上海', '苏州', 14], ['合肥', '北京', 12],
+      ['成都', '上海', 10], ['北京', '香港', 9]
+    ]
+  };
 
-  async function loadNews() {
-    const keys = getKeys();
-    let items = [];
-    try {
-      const url = CONFIG.endpoints.cryptocompareNews + '?lang=EN&sortOrder=latest' + (keys.cryptoCompare ? '&api_key=' + encodeURIComponent(keys.cryptoCompare) : '');
-      const data = await fetchJson(url, 10000);
-      items = (data.Data || []).slice(0, 40).map(n => ({
-        id: n.id, source: n.source_info ? n.source_info.name : (n.source || 'CryptoCompare'),
-        title: n.title, body: n.body, categories: n.categories || [],
-        published_on: n.published_on, url: n.url, imageurl: n.imageurl || '', sentiment: 'neutral', coins: []
-      }));
-      setStatus('news', true, I18N.t('status.news'), I18N.t('status.items', { n: items.length }));
-    } catch (e) {
-      setStatus('news', false, I18N.t('status.news'), I18N.t('status.demo'));
-    }
+  const signals = [
+    { id: 'sig-01', level: 'high', cat: '机构动态', title: '红杉中国近30天连投4家AI与具身智能头部公司', evidence: '智谱AI、宇树科技、阶跃星辰、自变量机器人先后交割，单笔最高28亿元', refs: ['红杉中国', '宇树科技'], ts: '2026-08-15 08:20' },
+    { id: 'sig-02', level: 'high', cat: '赛道动量', title: '具身智能赛道近30天融资总额环比增长68%', evidence: '本期约59.5亿元，上期约35.4亿元，量产订单与场景落地驱动', refs: ['宇树科技', '智元机器人'], ts: '2026-08-15 07:58' },
+    { id: 'sig-03', level: 'high', cat: '赛道动量', title: '国产GPU进入D轮密集交割期', evidence: '壁仞科技、沐曦、摩尔线程一个月内连续完成D轮，合计107亿元', refs: ['壁仞科技', '沐曦集成电路'], ts: '2026-08-15 07:42' },
+    { id: 'sig-04', level: 'medium', cat: '机构动态', title: '高瓴创投月度出手频率升至近12个月最高', evidence: '近30天参与9笔交易，覆盖AI、机器人、新能源与消费', refs: ['高瓴创投'], ts: '2026-08-15 07:20' },
+    { id: 'sig-05', level: 'medium', cat: '资金流向', title: '北向资金连续3个月净流入超700亿元', evidence: '5-7月累计净流入约2270亿元，外资风险偏好回升', refs: [], ts: '2026-08-15 06:55' },
+    { id: 'sig-06', level: 'medium', cat: '赛道动量', title: '霸王茶姬Pre-IPO交割50亿元，消费赛道回暖', evidence: '海外门店占比提升，头部品牌进入上市前融资窗口', refs: ['霸王茶姬'], ts: '2026-08-15 06:31' },
+    { id: 'sig-07', level: 'low', cat: '资金流向', title: '政府引导基金在硬科技交易中参与度升至42%', evidence: '芯片、机器人、新能源等领域多笔大额交易由引导基金领投', refs: ['上海科创基金', '国投创合'], ts: '2026-08-14 22:10' },
+    { id: 'sig-08', level: 'low', cat: '资金流向', title: '海外基金对华投资占比连续两个季度回升', evidence: '淡马锡、软银愿景等参与固态电池与AI芯片项目', refs: ['淡马锡', '软银愿景'], ts: '2026-08-14 21:35' },
+    { id: 'sig-09', level: 'medium', cat: '估值预警', title: 'AI应用层估值中枢上移，部分A轮项目估值同比翻倍', evidence: 'Agent类公司A轮估值区间上移至20-40亿元', refs: ['澜码科技'], ts: '2026-08-14 20:18' },
+    { id: 'sig-10', level: 'low', cat: '赛道动量', title: '生物医药License-out交易回暖', evidence: 'ADC管线海外授权活跃，创新药融资进入旺季', refs: ['普方生物', '映恩生物'], ts: '2026-08-14 19:50' },
+    { id: 'sig-11', level: 'high', cat: '赛道动量', title: 'AI大模型融资热度延续，近30天头部项目吸金超180亿元', evidence: '智谱AI、澜码科技等先后交割，单笔最高35亿元', refs: ['智谱AI', '澜码科技'], ts: '2026-08-17 09:20' },
+    { id: 'sig-12', level: 'high', cat: '机构动态', title: '高瓴创投近48小时连投智谱AI与蜜雪冰城', evidence: '智谱AI B+轮与蜜雪冰城战略轮先后完成', refs: ['高瓴创投', '智谱AI', '蜜雪冰城'], ts: '2026-08-17 09:05' },
+    { id: 'sig-13', level: 'medium', cat: '资金流向', title: '外资参与硬科技大额交易占比回升', evidence: '淡马锡、软银愿景参与固态电池与AI芯片项目', refs: ['淡马锡', '软银愿景'], ts: '2026-08-16 22:40' },
+    { id: 'sig-14', level: 'medium', cat: '赛道动量', title: '固态电池融资升温，太蓝新能源完成新一轮', evidence: '太蓝新能源全固态中试线投产，装车验证推进', refs: ['太蓝新能源'], ts: '2026-08-16 22:10' },
+    { id: 'sig-15', level: 'high', cat: '赛道动量', title: 'AI大模型与应用层融资热度延续，头部项目近30天吸金超200亿元', evidence: '智谱AI、月之暗面、澜码科技等先后交割，单笔最高35亿元', refs: ['智谱AI', '月之暗面'], ts: '2026-08-18 09:20' },
+    { id: 'sig-16', level: 'high', cat: '机构动态', title: '腾讯投资近30天加码AI大模型与消费科技', evidence: '月之暗面、蜜雪冰城等交易完成', refs: ['腾讯投资', '月之暗面'], ts: '2026-08-18 09:05' },
+    { id: 'sig-17', level: 'medium', cat: '赛道动量', title: '固态电池与储能融资升温', evidence: '卫蓝新能源新一轮交割，装车与储能订单增长', refs: ['卫蓝新能源'], ts: '2026-08-18 08:50' },
+    { id: 'sig-18', level: 'medium', cat: '资金流向', title: '外资与产业资本共同参与硬科技大额轮次', evidence: '淡马锡、比亚迪投资参与固态电池与人形机器人项目', refs: ['淡马锡', '比亚迪投资'], ts: '2026-08-18 08:30' }
+  ];
 
-    if (keys.cryptoPanic) {
-      try {
-        const url = CONFIG.endpoints.cryptopanic + '?auth_token=' + encodeURIComponent(keys.cryptoPanic) + '&kind=news&filter=hot&public=true&currencies=BTC,ETH,SOL,BNB,XRP,DOGE';
-        const data = await fetchJson(url, 10000);
-        const extra = (data.results || []).slice(0, 30).map((p, i) => ({
-          id: 'cp-' + p.id + '-' + i, source: p.source ? p.source.title : 'CryptoPanic',
-          title: p.title, body: p.url || '', categories: (p.currencies || []).map(c => c.code),
-          published_on: new Date(p.published_at).getTime() / 1000, url: p.url, imageurl: '',
-          sentiment: 'neutral', coins: (p.currencies || []).map(c => c.code)
-        }));
-        items = items.concat(extra);
-        setStatus('cryptopanic', true, I18N.t('status.cryptopanic'), I18N.t('status.items', { n: extra.length }));
-      } catch (e) {
-        setStatus('cryptopanic', false, I18N.t('status.cryptopanic'), I18N.t('status.checkKey'));
-      }
-    }
+  const rules = [
+    { id: 'r1', name: '头部机构密集出手', desc: '任一机构近30天出手不少于3笔', enabled: true, level: 'high' },
+    { id: 'r2', name: '赛道动量突增', desc: '任一赛道近30天融资额环比增长不低于50%', enabled: true, level: 'high' },
+    { id: 'r3', name: '轮次上移', desc: '头部公司进入D轮及以上交割', enabled: true, level: 'medium' },
+    { id: 'r4', name: '北向资金趋势', desc: '北向资金连续3个月净流入超700亿元', enabled: true, level: 'medium' },
+    { id: 'r5', name: '估值异动', desc: 'A轮估值中位数环比变化超过100%', enabled: false, level: 'low' },
+    { id: 'r6', name: '跨境资本回流', desc: '海外基金参与交易占比连续两季度回升', enabled: true, level: 'low' },
+    { id: 'r7', name: '引导基金参与度', desc: '政府引导基金参与大额交易占比超过40%', enabled: false, level: 'low' },
+    { id: 'r8', name: '行业融资集中度', desc: '单赛道融资占比超过全市场35%', enabled: true, level: 'medium' }
+  ];
 
-    items.forEach(n => {
-      const scored = scoreNewsItem(n);
-      n.sentiment = scored.sentiment;
-      n.score = scored.score;
-      n.coins = scored.coins.length ? scored.coins : n.coins;
-    });
-    store.news = items.length ? items : localizeNews(DEMO_NEWS);
-    store.newsSource = items.length ? 'api' : 'demo';
-    notify();
-  }
+  const meta = {
+    name: '资本流径',
+    asOf: '2026-08-18 09:30',
+    rangeOptions: [
+      { v: 30, label: '近30天' }, { v: 90, label: '近90天' },
+      { v: 180, label: '近6个月' }, { v: 365, label: '近12个月' }
+    ]
+  };
 
-  async function loadFng() {
-    try {
-      const data = await fetchJson(CONFIG.endpoints.alternativeFng + '?limit=14', 8000);
-      store.fng = { value: +data.data[0].value, label: data.data[0].value_classification };
-      store.fngHistory = data.data.slice(0, 14).map(d => ({ value: +d.value, label: d.value_classification, time: d.timestamp * 1000 }));
-      setStatus('fng', true, I18N.t('status.fng'), store.fng.value + ' / 100');
-    } catch (e) {
-      store.fng = { value: 54, label: 'Neutral', source: 'demo' };
-      store.fngHistory = [];
-      setStatus('fng', false, I18N.t('status.fng'), I18N.t('status.demo'));
-    }
-    notify();
-  }
-
-  async function loadGlobal() {
-    try {
-      const data = await fetchJson(CONFIG.endpoints.coingeckoGlobal, 9000);
-      const g = data.data;
-      store.global = {
-        btcDominance: g.market_cap_percentage ? g.market_cap_percentage.btc : null,
-        ethDominance: g.market_cap_percentage ? g.market_cap_percentage.eth : null,
-        totalMc: g.total_market_cap ? g.total_market_cap.usd : null,
-        totalVol: g.total_volume ? g.total_volume.usd : null,
-        mcChange: g.market_cap_change_percentage_24h_usd || 0, source: 'live'
-      };
-      setStatus('global', true, I18N.t('status.global'), 'cap & share');
-    } catch (e) {
-      store.global = { btcDominance: 52.4, ethDominance: 17.8, totalMc: 2_420_000_000_000, totalVol: 86_500_000_000, mcChange: 1.2, source: 'demo' };
-      setStatus('global', false, I18N.t('status.global'), I18N.t('status.demo'));
-    }
-    notify();
-  }
-
-  async function loadOnchain() {
-    await Promise.allSettled([
-      (async () => {
-        try {
-          const s = await fetchJson(CONFIG.endpoints.blockchainStats, 9000);
-          store.onchain.btc = {
-            blocks: s.blocks, transactions: s.n_tx, hashRate: s.hash_rate, minersRevenue: s.miners_revenue_usd,
-            mempoolSize: s.mempool_size, tradeVolume: s.trade_volume_btc, totalBtc: s.totalbc, source: 'live'
-          };
-          setStatus('blockchain', true, I18N.t('status.blockchain'), 'Blockchain.info');
-        } catch (e) {
-          store.onchain.btc = { blocks: 858_000, transactions: 512_000, hashRate: 610_000_000_000, minersRevenue: 41_800_000, source: 'demo' };
-          setStatus('blockchain', false, I18N.t('status.blockchain'), I18N.t('status.demo'));
-        }
-      })(),
-      (async () => {
-        try {
-          const fees = await fetchJson(CONFIG.endpoints.mempoolFee, 8000);
-          const mem = await fetchJson(CONFIG.endpoints.mempoolStats, 8000);
-          store.onchain.fees = { fastest: fees.fastestFee, half: fees.halfHourFee, hour: fees.hourFee, source: 'live' };
-          store.onchain.mempool = { count: mem.count, vSize: mem.vsize, totalFee: mem.total_fee, source: 'live' };
-          setStatus('mempool', true, I18N.t('status.mempool'), 'Mempool.space');
-        } catch (e) {
-          store.onchain.fees = { fastest: 38, half: 22, hour: 12, source: 'demo' };
-          store.onchain.mempool = { count: 96_000, vSize: 118_000_000, totalFee: 14.2, source: 'demo' };
-          setStatus('mempool', false, I18N.t('status.mempool'), I18N.t('status.demo'));
-        }
-      })(),
-      (async () => {
-        try {
-          const rows = await fetchJson(CONFIG.endpoints.defillama, 12000);
-          store.onchain.defi = rows.filter(r => r.tvl > 0).sort((a, b) => b.tvl - a.tvl).slice(0, 8).map(r => ({
-            name: r.name, tvl: r.tvl, change: r.change_1d != null ? r.change_1d : null
-          }));
-          setStatus('defillama', true, I18N.t('status.defillama'), 'TVL');
-        } catch (e) {
-          store.onchain.defi = [
-            { name: 'Ethereum', tvl: 58_000_000_000, change: 1.8 },
-            { name: 'Solana', tvl: 5_200_000_000, change: 4.6 },
-            { name: 'BSC', tvl: 4_800_000_000, change: -0.6 },
-            { name: 'Arbitrum', tvl: 3_900_000_000, change: 2.1 },
-            { name: 'Tron', tvl: 7_800_000_000, change: 0.3 },
-            { name: 'Base', tvl: 2_700_000_000, change: 5.9 }
-          ];
-          setStatus('defillama', false, I18N.t('status.defillama'), I18N.t('status.demo'));
-        }
-      })()
-    ]);
-
-    const keys = getKeys();
-    try {
-      if (keys.whaleAlert) {
-        const url = CONFIG.endpoints.whaleAlert + '?api_key=' + encodeURIComponent(keys.whaleAlert) + '&min_value=10000000&limit=20';
-        const data = await fetchJson(url, 9000);
-        store.onchain.whales = (data.transactions || []).map(t => ({
-          chain: (t.blockchain || 'BTC').toUpperCase().slice(0, 4),
-          amount: t.amount || 0, usd: t.amount_usd || 0,
-          side: t.from && t.from.owner_type === 'exchange' ? 'out' : 'in',
-          exchange: (t.from && t.from.owner_type === 'exchange' ? t.from.name : (t.to && t.to.owner_type === 'exchange' ? t.to.name : 'Unknown')) || 'Unknown',
-          time: new Date(t.timestamp * 1000).getTime()
-        }));
-        store.onchain.whalesSource = 'live';
-        setStatus('whale', true, I18N.t('status.whale'), I18N.t('status.txCount', { n: store.onchain.whales.length }));
-      } else {
-        store.onchain.whales = demoWhales();
-        store.onchain.whalesSource = 'demo';
-        setStatus('whale', false, I18N.t('status.whale'), I18N.t('status.demo'));
-      }
-    } catch (e) {
-      store.onchain.whales = demoWhales();
-      store.onchain.whalesSource = 'demo';
-      setStatus('whale', false, I18N.t('status.whale'), I18N.t('status.demo'));
-    }
-
-    store.onchain.flows = demoFlows();
-    notify();
-  }
-
-  async function loadAllKlines() {
-    const int = CONFIG.intervals.find(i => i.id === '1h');
-    await Promise.allSettled(CONFIG.coins.map(async coin => {
-      const key = coin.symbol + ':1h';
-      try {
-        const url = CONFIG.endpoints.binanceRest + '/api/v3/klines?symbol=' + coin.symbol + 'USDT&interval=' + int.binance + '&limit=100';
-        const rows = await fetchJson(url, 9000);
-        store.klines[key] = { data: rows, source: 'live' };
-      } catch (e) {
-        store.klines[key] = { data: demoKlines(coin.symbol, '1h'), source: 'demo' };
-      }
-      store.indicators[key] = Indicators.buildAll(store.klines[key].data);
-      const closes = store.klines[key].data.map(k => +k[4]);
-      if (store.tickers[coin.symbol]) store.tickers[coin.symbol].spark = closes.slice(-24);
-    }));
-    setStatus('klines', true, I18N.t('status.klines'), I18N.t('status.symbols1h', { n: CONFIG.coins.length }));
-    notify();
-  }
-
-  function signalKey(symbol, type, direction) {
-    return symbol + ':' + type + ':' + direction;
-  }
-
-  function scanSignals() {
-    const now = new Date();
-    const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-    const newSignals = [];
-    CONFIG.coins.forEach(coin => {
-      const ind = store.indicators[coin.symbol + ':1h'];
-      if (!ind) return;
-      const i = ind.closes.length - 1;
-      const l = Indicators.latest(ind, i);
-      const change = store.tickers[coin.symbol] ? store.tickers[coin.symbol].change : null;
-      const push = (kind, dir, severity, color, vals) => {
-        const key = coin.symbol + ':' + kind + ':' + dir;
-        newSignals.push({ key, symbol: coin.symbol, kind, dir, severity, time: timeStr, color, vals: vals || {} });
-      };
-      if (l.rsi != null) {
-        if (l.rsi < 30) push('rsi', 'os', 'medium', '#2dd4bf', { v: l.rsi.toFixed(1) });
-        if (l.rsi > 70) push('rsi', 'ob', 'medium', '#f4b942', { v: l.rsi.toFixed(1) });
-      }
-      if (l.macdHist != null && ind.macd.hist[i - 1] != null) {
-        if (l.macdHist > 0 && ind.macd.hist[i - 1] <= 0) push('macd', 'bull', 'medium', '#2fbf71', { v: l.macd != null ? l.macd.toFixed(3) : '' });
-        if (l.macdHist < 0 && ind.macd.hist[i - 1] >= 0) push('macd', 'bear', 'medium', '#f0546d', { v: l.macd != null ? l.macd.toFixed(3) : '' });
-      }
-      if (l.ema12 != null && l.ema26 != null && ind.ema12[i - 1] != null && ind.ema26[i - 1] != null) {
-        const prevBull = ind.ema12[i - 1] > ind.ema26[i - 1];
-        const nowBull = l.ema12 > l.ema26;
-        if (!prevBull && nowBull) push('ema', 'bull', 'medium', '#2fbf71', {});
-        if (prevBull && !nowBull) push('ema', 'bear', 'medium', '#f0546d', {});
-      }
-      if (l.bollUpper != null) {
-        if (l.price > l.bollUpper) push('boll', 'up', 'high', '#2fbf71', { v: l.price });
-        if (l.price < l.bollLower) push('boll', 'down', 'high', '#f0546d', { v: l.price });
-      }
-      if (Math.abs(l.zScore) > 3.5) push('anomaly', 'z', 'high', '#f4b942', { v: l.zScore.toFixed(2) });
-      const dev = l.ewmaRet - l.ewmaVol * 2.5;
-      if (Math.abs(l.ewmaRet) > l.ewmaVol * 2.5 && Math.abs(l.ewmaRet) > 0.006) push('anomaly', 'ewma', 'high', '#f4b942', { v: (dev * 100).toFixed(2) });
-      if (change != null && !isNaN(change) && Math.abs(change) >= 5) {
-        push('move', change > 0 ? 'up' : 'down', 'low', change > 0 ? '#2fbf71' : '#f0546d', { pct: (change > 0 ? '+' : '') + change.toFixed(2) + '%' });
-      }
-    });
-
-    const existing = new Set(store.signals.map(s => s.key));
-    newSignals.forEach(s => { if (!existing.has(s.key)) store.signals.unshift(s); });
-    store.signals = store.signals.slice(0, 160);
-    notify();
-  }
-
-  let ws = null;
-  function startWebSocket() {
-    try {
-      const streams = CONFIG.coins.map(c => c.symbol.toLowerCase() + 'usdt@miniTicker').join('/');
-      ws = new WebSocket(CONFIG.endpoints.binanceWs + '?streams=' + streams);
-      ws.onmessage = ev => {
-        try {
-          const msg = JSON.parse(ev.data);
-          const data = msg.data;
-          const sym = data.s.toUpperCase().replace('USDT', '');
-          const t = store.tickers[sym];
-          if (t) {
-            t.price = +data.c;
-            const op = +data.o;
-            const chg = op ? ((+data.c - op) / op) * 100 : NaN;
-            if (!isNaN(chg)) t.change = chg;
-            t.high = Math.max(t.high || +data.c, +data.h);
-            t.low = t.low ? Math.min(t.low, +data.l) : +data.l;
-            t.source = 'ws';
-            if (t.spark && t.spark.length) { t.spark.push(+data.c); if (t.spark.length > 60) t.spark.shift(); }
-          }
-          notify();
-        } catch (e) { /* ignore malformed frame */ }
-      };
-      ws.onerror = () => { setStatus('ws', false, I18N.t('status.ws'), I18N.t('status.unavailable')); try { ws.close(); } catch (e) {} ws = null; };
-      ws.onopen = () => setStatus('ws', true, I18N.t('status.ws'), I18N.t('status.symbols', { n: CONFIG.coins.length }));
-    } catch (e) {
-      setStatus('ws', false, I18N.t('status.ws'), I18N.t('status.unavailable'));
-    }
-  }
-
-  async function start() {
-    setStatus('binance', false, I18N.t('status.binance'), I18N.t('status.connecting'));
-    setStatus('klines', false, I18N.t('status.klines'), I18N.t('status.connecting'));
-    setStatus('depth', false, I18N.t('status.depth'), I18N.t('status.connecting'));
-    setStatus('news', false, I18N.t('status.news'), I18N.t('status.connecting'));
-    setStatus('fng', false, I18N.t('status.fng'), I18N.t('status.connecting'));
-    await Promise.allSettled([loadTickers(), loadFng(), loadGlobal(), loadNews(), loadOnchain()]);
-    await loadAllKlines();
-    await Promise.allSettled([loadKlines('BTC', '1h'), loadDepth('BTC')]);
-    scanSignals();
-    notify();
-
-    startWebSocket();
-    timers.push(setInterval(() => loadTickers(), 15000));
-    timers.push(setInterval(() => loadDepth(store.activeSymbol || 'BTC'), 20000));
-    timers.push(setInterval(() => loadKlines(store.activeSymbol || 'BTC', store.activeInterval || '1h'), 60000));
-    timers.push(setInterval(() => loadNews(), 300000));
-    timers.push(setInterval(() => loadOnchain(), 180000));
-    timers.push(setInterval(() => loadFng(), 600000));
-    timers.push(setInterval(() => loadGlobal(), 600000));
-    timers.push(setInterval(() => scanSignals(), 30000));
-  }
-
-  return {
-    store, subscribe, start, getKeys, saveKeys, setStatus, fetchJson, setActive,
-    loadKlines, loadDepth, loadNews, loadFng, loadGlobal, loadOnchain, scanSignals, fmtNum, seededRandom, hashSeed, demoKlines, localizeStoreNews
+  window.DATA = {
+    sectors, institutions, companies, deals, flows, signals, rules, meta
   };
 })();
