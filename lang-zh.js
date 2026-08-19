@@ -266,5 +266,10 @@ window.__LANG_zh = {
   'status.symbols1h': '{n} 个币种 1h',
   'status.items': '{n} 条资讯',
   'status.txCount': '{n} 笔交易',
-  'meta.desc': '实时行情、K线、技术指标、资讯情绪与链上数据监控'
+  'meta.desc': '实时行情、K线、技术指标、资讯情绪与链上数据监控',
+  'news.cat.all': '全部',
+  'news.cat.wallet': '钱包',
+  'news.cat.policy': '政策',
+  'news.cat.tech': '技术',
+  'news.cat.market': '市场'
 };

@@ -266,5 +266,10 @@ window.__LANG_en = {
   'status.symbols1h': '{n} symbols 1h',
   'status.items': '{n} items',
   'status.txCount': '{n} tx',
-  'meta.desc': 'Live prices, candlesticks, indicators, news sentiment and on-chain monitoring'
+  'meta.desc': 'Live prices, candlesticks, indicators, news sentiment and on-chain monitoring',
+  'news.cat.all': 'All',
+  'news.cat.wallet': 'Wallets',
+  'news.cat.policy': 'Policy',
+  'news.cat.tech': 'Tech',
+  'news.cat.market': 'Market'
 };

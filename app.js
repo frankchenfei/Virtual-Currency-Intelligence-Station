@@ -5,7 +5,8 @@ const App = (() => {
     interval: '1h',
     overlays: { ma: true, boll: false, vol: true },
     newsSentiment: 'all',
-    newsCoin: 'all'
+    newsCoin: 'all',
+    newsCategory: 'all'
   };
 
   const $ = id => document.getElementById(id);
@@ -318,10 +319,20 @@ const App = (() => {
     }));
   }
 
+  function newsTopic(n) {
+    if (n.topic) return n.topic;
+    const cats = n.categories || [];
+    if (cats.some(c => ['Wallet', 'Custody', 'Institutional'].includes(c))) return 'wallet';
+    if (cats.some(c => ['Regulation', 'Policy', 'Stablecoin', 'Legal'].includes(c))) return 'policy';
+    if (cats.some(c => ['Upgrade', 'Tech', 'Security', 'Protocol', 'Network'].includes(c))) return 'tech';
+    return 'market';
+  }
+
   function renderNewsList() {
     const list = Data.store.news.filter(n => {
       if (state.newsSentiment !== 'all' && n.sentiment !== state.newsSentiment) return false;
       if (state.newsCoin !== 'all' && !(n.coins || []).includes(state.newsCoin)) return false;
+      if (state.newsCategory !== 'all' && newsTopic(n) !== state.newsCategory) return false;
       return true;
     }).slice(0, 40);
     const el = $('newsList');
@@ -619,6 +630,13 @@ const App = (() => {
         state.newsSentiment = btn.dataset.sent;
         document.querySelectorAll('#sentimentFilter button').forEach(b => b.classList.toggle('active', b === btn));
         renderNewsList();
+      }) &&
+      on('newsCategoryFilter', 'click', e => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        state.newsCategory = btn.dataset.cat;
+        document.querySelectorAll('#newsCategoryFilter button').forEach(b => b.classList.toggle('active', b === btn));
+        renderNewsList();
       });
     return ok;
   }
@@ -646,7 +664,7 @@ const App = (() => {
   }
 
   function init() {
-    const required = ['mainTabs', 'intervalSeg', 'overlaySeg', 'settingsModal', 'askForm', 'chatForm', 'sentimentFilter', 'candleChart', 'depthChart', 'tickerStrip', 'signalPanel', 'indicatorPanel', 'marketOverview', 'newsList', 'newsCoinFilter', 'sentimentPanel', 'briefBody', 'netStats', 'feePanel', 'defiPanel', 'whalePanel', 'flowPanel', 'chatLog', 'suggestions', 'insightBody', 'timelineBody', 'liveBadge', 'sourceStatus', 'langSwitch'];
+    const required = ['mainTabs', 'intervalSeg', 'overlaySeg', 'settingsModal', 'askForm', 'chatForm', 'sentimentFilter', 'newsCategoryFilter', 'candleChart', 'depthChart', 'tickerStrip', 'signalPanel', 'indicatorPanel', 'marketOverview', 'newsList', 'newsCoinFilter', 'sentimentPanel', 'briefBody', 'netStats', 'feePanel', 'defiPanel', 'whalePanel', 'flowPanel', 'chatLog', 'suggestions', 'insightBody', 'timelineBody', 'liveBadge', 'sourceStatus', 'langSwitch'];
     const missing = required.filter(id => !document.getElementById(id));
     if (missing.length) {
       setTimeout(init, 60);
