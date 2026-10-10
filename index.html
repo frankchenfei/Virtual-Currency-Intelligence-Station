@@ -10,7 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CryptoIntel 虚拟货币情报站</title>
-<link rel="stylesheet" href="styles.css?v=20261009">
+<link rel="stylesheet" href="styles.css?v=20261010">
 </head>
 <body>
 <header class="topbar">
@@ -39,6 +39,8 @@
   <button data-view="news" data-i18n="nav.news">资讯情报</button>
   <button data-view="chain" data-i18n="nav.chain">链上洞察</button>
   <button data-view="ai" data-i18n="nav.ai">AI 助手</button>
+  <button data-view="tools" data-i18n="nav.tools">生态工具</button>
+  <button data-view="research" data-i18n="nav.research">研究台</button>
 </nav>
 
 <main>
@@ -235,6 +237,83 @@
       </article>
     </div>
   </section>
+
+  <section id="view-tools" class="view">
+    <div class="tools-hero">
+      <div>
+        <h1 data-i18n="tools.title">生态工具与社区</h1>
+        <p data-i18n="tools.subtitle">聚合 DEX 行情、交易终端、链上数据与加密社交社区，打造更完整的研究工作台。</p>
+      </div>
+      <span class="tools-hero-note" data-i18n="tools.note">外部链接 · 仅供参考</span>
+    </div>
+
+    <article class="card tools-card">
+      <header class="card-head compact">
+        <h2 data-i18n="tools.marketTitle">行情、交易与链上工具</h2>
+        <span class="muted" data-i18n="tools.marketSub">常用 DEX、交易终端与数据平台</span>
+      </header>
+      <div id="toolsGrid" class="tools-grid"></div>
+    </article>
+
+    <article class="card tools-card">
+      <header class="card-head compact">
+        <h2 data-i18n="tools.socialTitle">加密社交与社区</h2>
+        <span class="muted" data-i18n="tools.socialSub">信息分发、讨论与叙事追踪</span>
+      </header>
+      <div id="socialGrid" class="social-grid"></div>
+    </article>
+  </section>
+
+  <section id="view-research" class="view">
+    <div class="research-hero">
+      <div>
+        <h1 data-i18n="research.title">研究台</h1>
+        <p data-i18n="research.subtitle">宏观日历、代币解锁、稳定币与 ETF、风控清单与学习路径，帮助你把行情信息转化为交易决策。</p>
+      </div>
+      <span class="tools-hero-note" data-i18n="research.note">研究框架 · 不构成投资建议</span>
+    </div>
+
+    <article class="card research-card">
+      <header class="card-head compact">
+        <h2 data-i18n="research.macroTitle">宏观事件日历</h2>
+        <span class="muted" data-i18n="research.macroSub">CPI、PPI、FOMC 与 PCE</span>
+      </header>
+      <div id="macroEvents" class="macro-list"></div>
+    </article>
+
+    <article class="card research-card">
+      <header class="card-head compact">
+        <h2 data-i18n="research.unlockTitle">代币解锁观察</h2>
+        <span class="muted" data-i18n="research.unlockSub">供给释放与流动性冲击</span>
+      </header>
+      <div id="unlockGrid" class="unlock-grid"></div>
+    </article>
+
+    <article class="card research-card">
+      <header class="card-head compact">
+        <h2 data-i18n="research.stableTitle">稳定币与 ETF</h2>
+        <span class="muted" data-i18n="research.stableSub">监管、产品与资金流</span>
+      </header>
+      <div id="stablecoinGrid" class="stable-grid"></div>
+    </article>
+
+    <div class="grid research-lower">
+      <article class="card">
+        <header class="card-head compact">
+          <h2 data-i18n="research.riskTitle">风控检查表</h2>
+          <span class="muted" data-i18n="research.riskSub">下单前逐项确认</span>
+        </header>
+        <div id="riskChecklist" class="risk-list"></div>
+      </article>
+      <article class="card">
+        <header class="card-head compact">
+          <h2 data-i18n="research.learnTitle">学习路径</h2>
+          <span class="muted" data-i18n="research.learnSub">从基础到实战</span>
+        </header>
+        <div id="learningGrid" class="learning-grid"></div>
+      </article>
+    </div>
+  </section>
 </main>
 
 <footer class="footer">
@@ -274,15 +353,15 @@
 
 <div id="toast" class="toast hidden" role="status"></div>
 
-<script src="lang-zh.js?v=20261009"></script>
-<script src="lang-en.js?v=20261009"></script>
-<script src="lang-es.js?v=20261009"></script>
-<script src="i18n.js?v=20261009"></script>
-<script src="config.js?v=20261009"></script>
-<script src="indicators.js?v=20261009"></script>
-<script src="data.js?v=20261009"></script>
-<script src="charts.js?v=20261009"></script>
-<script src="ai.js?v=20261009"></script>
-<script src="app.js?v=20261009"></script>
+<script src="lang-zh.js?v=20261010"></script>
+<script src="lang-en.js?v=20261010"></script>
+<script src="lang-es.js?v=20261010"></script>
+<script src="i18n.js?v=20261010"></script>
+<script src="config.js?v=20261010"></script>
+<script src="indicators.js?v=20261010"></script>
+<script src="data.js?v=20261010"></script>
+<script src="charts.js?v=20261010"></script>
+<script src="ai.js?v=20261010"></script>
+<script src="app.js?v=20261010"></script>
 </body>
 </html>
